@@ -10,6 +10,12 @@ export interface HookData {
   style: "bold" | "glitch" | "zoom";
 }
 
+export interface WordTimingData {
+  word: string;
+  startFrame: number;
+  endFrame: number;
+}
+
 export interface SceneData {
   index: number;
   durationInFrames: number;
@@ -17,6 +23,7 @@ export interface SceneData {
   narration: string;
   textOverlay: TextOverlayData | null;
   icon: string | null;
+  wordTimings: WordTimingData[];
 }
 
 export interface VideoProps {

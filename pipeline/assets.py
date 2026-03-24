@@ -77,8 +77,15 @@ def search_pixabay_image(api_key: str, query: str) -> Optional[str]:
     return hits[0].get("largeImageURL")
 
 
-def search_serpapi_images(api_key: str, query: str, num: int = 5) -> List[str]:
-    """Search Google Images via SerpAPI. Returns list of image URLs."""
+BLOCKED_DOMAINS = [
+    "shutterstock.com", "istockphoto.com", "gettyimages.com",
+    "dreamstime.com", "123rf.com", "alamy.com", "depositphotos.com",
+    "stock.adobe.com", "bigstockphoto.com",
+]
+
+
+def search_serpapi_images(api_key: str, query: str, num: int = 10) -> List[str]:
+    """Search Google Images via SerpAPI. Filters out stock photo sites. Returns image URLs."""
     resp = requests.get(
         "https://serpapi.com/search.json",
         params={
@@ -93,10 +100,16 @@ def search_serpapi_images(api_key: str, query: str, num: int = 5) -> List[str]:
         return []
     data = resp.json()
     urls = []
-    for item in data.get("images_results", [])[:num]:
+    for item in data.get("images_results", []):
         url = item.get("original", "")
+        source = item.get("source", "").lower()
+        # Skip stock photo sites (watermarked previews)
+        if any(domain in url.lower() or domain in source for domain in BLOCKED_DOMAINS):
+            continue
         if url and url.startswith("http"):
             urls.append(url)
+        if len(urls) >= num:
+            break
     return urls
 
 
@@ -255,7 +268,10 @@ def fetch_asset(
 
         # Try SerpAPI results (multiple URLs)
         if serpapi_key:
-            urls = search_serpapi_images(serpapi_key, query, num=5)
+            try:
+                urls = search_serpapi_images(serpapi_key, query, num=5)
+            except Exception:
+                urls = []
             for url in urls:
                 try:
                     download_file(url, final_path)
@@ -282,6 +298,23 @@ def fetch_asset(
                 pass
 
         return None
+
+    elif visual_type == "news_video":
+        # Search Pexels for a relevant video clip
+        url = search_pexels_video(pexels_key, query)
+        if not url and pixabay_key:
+            url = search_pixabay_video(pixabay_key, query)
+        if not url:
+            return None
+        ext = "mp4"
+        raw_path = str(tmp / f"scene_{scene_index:03d}_raw.{ext}")
+        final_path = str(tmp / f"scene_{scene_index:03d}.{ext}")
+        try:
+            download_file(url, raw_path)
+            trim_video(raw_path, final_path, max_video_length)
+            return final_path
+        except Exception:
+            return None
 
     # solid_color needs no asset
     return None

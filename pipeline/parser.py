@@ -21,6 +21,13 @@ class Visuals:
 
 
 @dataclass
+class WordTiming:
+    word: str = ""
+    start: float = 0.0  # seconds
+    end: float = 0.0  # seconds
+
+
+@dataclass
 class Scene:
     index: int = 0
     narration: str = ""
@@ -33,6 +40,7 @@ class Scene:
     audio_duration: Optional[float] = None
     asset_path: Optional[str] = None
     overlay_path: Optional[str] = None
+    word_timings: List[WordTiming] = field(default_factory=list)
 
 
 @dataclass

@@ -9,7 +9,7 @@ from pipeline.parser import Scene, Hook
 from typing import Optional
 
 
-def build_remotion_props(scenes: List[Scene], fps: int = 30, hook: Optional[Hook] = None, show_character: bool = False) -> dict:
+def build_remotion_props(scenes: List[Scene], fps: int = 30, hook: Optional[Hook] = None, show_character: bool = False, scene_padding: float = 0.3) -> dict:
     """Convert scene list to Remotion-compatible props JSON."""
     remotion_scenes = []
 
@@ -27,8 +27,17 @@ def build_remotion_props(scenes: List[Scene], fps: int = 30, hook: Optional[Hook
     total_frames = hook_frames
 
     for scene in scenes:
-        duration = scene.audio_duration or scene.duration or 3.0
+        duration = (scene.audio_duration or scene.duration or 3.0) + scene_padding
         frame_count = int(duration * fps)
+
+        # Convert word timings to frame-based
+        word_timings_frames = []
+        for wt in (scene.word_timings or []):
+            word_timings_frames.append({
+                "word": wt.word,
+                "startFrame": total_frames + int(wt.start * fps),
+                "endFrame": total_frames + int(wt.end * fps),
+            })
 
         remotion_scene = {
             "index": scene.index,
@@ -37,6 +46,7 @@ def build_remotion_props(scenes: List[Scene], fps: int = 30, hook: Optional[Hook
             "narration": scene.narration,
             "textOverlay": None,
             "icon": scene.icon,
+            "wordTimings": word_timings_frames,
         }
 
         if scene.text_overlay:
@@ -68,12 +78,13 @@ def render_overlays(
     timeout: int = 300,
     hook: Optional[Hook] = None,
     show_character: bool = False,
+    scene_padding: float = 0.3,
 ) -> str:
     """Render the overlay video using Remotion CLI.
 
     Returns path to the rendered overlay video (MOV with alpha).
     """
-    props = build_remotion_props(scenes, fps, hook=hook, show_character=show_character)
+    props = build_remotion_props(scenes, fps, hook=hook, show_character=show_character, scene_padding=scene_padding)
     props_path = str(Path(tmp_dir) / "remotion_input.json")
     png_dir = str(Path(tmp_dir) / "overlays" / "frames")
     output_path = str(Path(tmp_dir) / "overlays" / "overlay.mov")

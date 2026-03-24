@@ -59,7 +59,7 @@ scenes:
   - narration: "My advice? Don't panic. Stay invested. Keep dollar cost averaging. This is noise, not a reason to change your strategy."
     visuals:
       type: news_image
-      query: "calm investor strategy long term"
+      query: "person looking at stock market chart confident"
     text_overlay:
       content: "Stay the Course"
       style: title

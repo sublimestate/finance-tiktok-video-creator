@@ -21,19 +21,63 @@ def _create_color_clip(color: str, duration: float, output_path: str,
 
 def _create_ken_burns(image_path: str, duration: float, output_path: str,
                       width: int = 1080, height: int = 1920, fps: int = 30) -> None:
-    """Create a clip from a still image with scale-to-fill."""
+    """Create a clip from a still image with blurred background + slow zoom on the foreground."""
+    frames = int(duration * fps)
+    # Two-pass: first resize image to manageable size, then compose
+    # Step 1: Pre-resize the image to limit processing
+    tmp_resized = output_path + "_resized.jpg"
     subprocess.run(
-        ["ffmpeg", "-y", "-loop", "1", "-i", image_path,
-         "-vf", (
-             f"scale={width}:{height}:force_original_aspect_ratio=increase,"
-             f"crop={width}:{height},setsar=1"
+        ["ffmpeg", "-y", "-i", image_path,
+         "-vf", f"scale=1080:-1",
+         "-q:v", "2", tmp_resized],
+        capture_output=True, timeout=15,
+    )
+    src = tmp_resized if os.path.exists(tmp_resized) and os.path.getsize(tmp_resized) > 0 else image_path
+
+    # Step 2: Create blurred bg + foreground with slow zoom
+    result = subprocess.run(
+        ["ffmpeg", "-y", "-loop", "1", "-i", src,
+         "-filter_complex", (
+             # Blurred background layer
+             f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
+             f"crop={width}:{height},boxblur=20:5[bg];"
+             # Foreground with slow zoom (1.0 -> 1.08)
+             f"[0:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+             f"zoompan=z='1+0.08*on/{frames}':"
+             f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+             f"d={frames}:s={width}x{height}:fps={fps}[fg];"
+             # Overlay fg on bg
+             f"[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1[out]"
          ),
+         "-map", "[out]",
          "-t", str(duration),
          "-r", str(fps),
          "-c:v", "libx264", "-pix_fmt", "yuv420p", output_path],
         capture_output=True,
-        timeout=60,
+        timeout=180,
     )
+
+    # Clean up temp file
+    if os.path.exists(tmp_resized):
+        os.unlink(tmp_resized)
+
+    # If zoompan failed (timeout), fall back to static
+    if result.returncode != 0 or not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+        subprocess.run(
+            ["ffmpeg", "-y", "-loop", "1", "-i", image_path,
+             "-filter_complex", (
+                 f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
+                 f"crop={width}:{height},boxblur=20:5[bg];"
+                 f"[0:v]scale={width}:{height}:force_original_aspect_ratio=decrease[fg];"
+                 f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
+             ),
+             "-map", "[out]",
+             "-t", str(duration),
+             "-r", str(fps),
+             "-c:v", "libx264", "-pix_fmt", "yuv420p", output_path],
+            capture_output=True,
+            timeout=120,
+        )
 
 
 def build_background(scenes: List[Scene], tmp_dir: str,
@@ -51,7 +95,7 @@ def build_background(scenes: List[Scene], tmp_dir: str,
     if hook_duration > 0 and scenes:
         first_scene = scenes[0]
         hook_seg = str(bg_dir / "hook.mp4")
-        if first_scene.visuals.type == "stock_video" and first_scene.asset_path:
+        if first_scene.visuals.type in ("stock_video", "news_video") and first_scene.asset_path:
             subprocess.run(
                 ["ffmpeg", "-y", "-i", first_scene.asset_path,
                  "-vf", (
@@ -75,7 +119,7 @@ def build_background(scenes: List[Scene], tmp_dir: str,
         duration = (scene.audio_duration or scene.duration or 3.0) + scene_padding
         seg_path = str(bg_dir / f"scene_{scene.index:03d}.mp4")
 
-        if scene.visuals.type == "stock_video" and scene.asset_path:
+        if scene.visuals.type in ("stock_video", "news_video") and scene.asset_path:
             # Scale and pad stock video to exact dimensions and duration
             subprocess.run(
                 ["ffmpeg", "-y", "-i", scene.asset_path,

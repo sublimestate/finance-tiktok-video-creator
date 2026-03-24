@@ -1,0 +1,67 @@
+title: "How Much is Gold Right Now"
+voice: "adam"
+music: null
+character: true
+hook:
+  text: "GOLD IS EXPLODING"
+  duration: 1.5
+  style: bold
+
+scenes:
+  - narration: "Everyone is asking the same question right now. How much is gold? Let's break it down."
+    visuals:
+      type: news_video
+      query: "gold bars vault wealth"
+    text_overlay:
+      content: "How Much Is Gold?"
+      style: title
+      position: top
+
+  - narration: "Gold prices have been surging. As of this week, gold is trading near all time highs above forty four hundred dollars per ounce."
+    visuals:
+      type: news_image
+      query: "gold price chart 2026 all time high"
+    text_overlay:
+      content: "Near All-Time Highs"
+      style: lower_third
+      position: bottom
+    icon: "chart"
+
+  - narration: "Why is gold going up? Three reasons. Inflation fears, a weakening dollar, and global uncertainty."
+    visuals:
+      type: news_video
+      query: "inflation economy news"
+    text_overlay:
+      content: "3 Reasons Gold Is Up"
+      style: title
+      position: top
+    icon: "fire"
+
+  - narration: "Central banks around the world have been buying gold at record levels. They're hedging against currency risk."
+    visuals:
+      type: news_image
+      query: "central bank gold reserves"
+    text_overlay:
+      content: "Central Banks Buying"
+      style: lower_third
+      position: bottom
+    icon: "dollar"
+
+  - narration: "Should you buy gold right now? Gold is a long term store of value. It's not a get rich quick play. It's insurance for your portfolio."
+    visuals:
+      type: news_video
+      query: "gold investment coins"
+    text_overlay:
+      content: "Portfolio Insurance"
+      style: title
+      position: top
+
+  - narration: "If you want exposure, consider gold ETFs like GLD or physical gold. Start small and think long term. Follow for more market updates."
+    visuals:
+      type: news_image
+      query: "gold ETF investing stock market"
+    text_overlay:
+      content: "Gold ETFs or Physical"
+      style: lower_third
+      position: bottom
+    icon: "target"

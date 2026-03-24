@@ -88,7 +88,7 @@ def main():
         google_cx = api_keys.get("google_cx", "")
         serpapi_key = api_keys.get("serpapi_key", "")
         for scene in script.scenes:
-            if scene.visuals.type in ("stock_video", "stock_image", "news_image") and scene.visuals.query:
+            if scene.visuals.type in ("stock_video", "stock_image", "news_image", "news_video") and scene.visuals.query:
                 print(f"  Scene {scene.index}: fetching {scene.visuals.type} for '{scene.visuals.query}'...")
                 asset_path = fetch_asset(
                     scene.index,
@@ -115,13 +115,31 @@ def main():
     voice_cache = {}
     if args.skip_tts:
         print("  Skipped (--skip-tts)")
-        # Load cached audio and probe durations
-        from pipeline.tts import get_audio_duration
+        # Load cached audio, durations, and word timings
+        from pipeline.tts import get_audio_duration, _estimate_word_timings
+        from pipeline.parser import WordTiming
+        import json as _json
         for scene in script.scenes:
             cached = str(Path(tmp_dir) / "audio" / f"scene_{scene.index:03d}.mp3")
+            timings_path = str(Path(tmp_dir) / "audio" / f"scene_{scene.index:03d}_timings.json")
             if os.path.exists(cached):
                 scene.audio_path = cached
                 scene.audio_duration = get_audio_duration(cached)
+                # Load cached word timings
+                if os.path.exists(timings_path):
+                    with open(timings_path) as f:
+                        wt_data = _json.load(f)
+                    scene.word_timings = [
+                        WordTiming(word=w["word"], start=w["start"], end=w["end"])
+                        for w in wt_data
+                    ]
+                elif scene.narration:
+                    # Estimate if no cached timings
+                    wt_data = _estimate_word_timings(scene.narration, scene.audio_duration)
+                    scene.word_timings = [
+                        WordTiming(word=w["word"], start=w["start"], end=w["end"])
+                        for w in wt_data
+                    ]
     else:
         elevenlabs_key = api_keys.get("elevenlabs", "")
         fish_audio_key = api_keys.get("fish_audio", "")
@@ -134,7 +152,7 @@ def main():
                     continue
                 audio_path = str(Path(tmp_dir) / "audio" / f"scene_{scene.index:03d}.mp3")
                 print(f"  Scene {scene.index}: generating audio...")
-                duration = generate_tts(
+                duration, word_timings = generate_tts(
                     api_key=elevenlabs_key,
                     text=scene.narration,
                     output_path=audio_path,
@@ -148,7 +166,18 @@ def main():
                 )
                 scene.audio_path = audio_path
                 scene.audio_duration = duration
-                print(f"    → {duration:.2f}s")
+                # Store word timings for captions
+                from pipeline.parser import WordTiming
+                import json as _json
+                scene.word_timings = [
+                    WordTiming(word=w["word"], start=w["start"], end=w["end"])
+                    for w in word_timings
+                ]
+                # Cache word timings to disk
+                timings_path = str(Path(tmp_dir) / "audio" / f"scene_{scene.index:03d}_timings.json")
+                with open(timings_path, "w") as f:
+                    _json.dump(word_timings, f)
+                print(f"    → {duration:.2f}s ({len(word_timings)} words)")
 
     # --- Stage 4: Render Remotion overlays ---
     print("=" * 50)
@@ -168,6 +197,7 @@ def main():
                 timeout=remotion_cfg.get("timeout", 300),
                 hook=script.hook,
                 show_character=script.character,
+                scene_padding=scene_padding,
             )
             print(f"  → {overlay_path}")
         except Exception as e:
