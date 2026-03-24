@@ -1,0 +1,66 @@
+title: "Index Funds Explained in 60 Seconds"
+voice: "adam"
+music: null
+hook:
+  text: "THE EASIEST WAY TO GET RICH"
+  duration: 1.5
+  style: zoom
+
+scenes:
+  - narration: "Index funds are the easiest way to build wealth. Let me explain in sixty seconds."
+    visuals:
+      type: stock_video
+      query: "stock market trading screen"
+    text_overlay:
+      content: "Index Funds 101"
+      style: title
+      position: center
+    icon: "chart"
+
+  - narration: "When you buy an index fund, you're buying a tiny piece of hundreds of companies at once. Apple, Google, Amazon, all in one purchase."
+    visuals:
+      type: stock_video
+      query: "technology companies logos city"
+    text_overlay:
+      content: "Hundreds of Companies"
+      style: lower_third
+      position: bottom
+
+  - narration: "You don't need to pick individual stocks. You don't need to be a genius. You just need to be consistent."
+    visuals:
+      type: stock_image
+      query: "simple easy relaxed investing"
+    text_overlay:
+      content: "No Stock Picking Needed"
+      style: lower_third
+      position: bottom
+
+  - narration: "The S and P 500 has averaged about ten percent returns per year over the last century. That means your money doubles roughly every seven years."
+    visuals:
+      type: stock_video
+      query: "graph chart growth upward"
+    text_overlay:
+      content: "10% Average Returns"
+      style: title
+      position: center
+    icon: "rocket"
+
+  - narration: "If you invested just one hundred dollars a month starting at age twenty, you'd have over eight hundred thousand dollars by retirement."
+    visuals:
+      type: stock_video
+      query: "retirement happy elderly couple"
+    text_overlay:
+      content: "$100/mo → $800K+"
+      style: title
+      position: center
+    icon: "dollar"
+
+  - narration: "Stop overthinking. Start an index fund today. Your future self will thank you."
+    visuals:
+      type: stock_video
+      query: "person using phone investing app"
+    text_overlay:
+      content: "Start Now"
+      style: title
+      position: center
+    icon: "target"

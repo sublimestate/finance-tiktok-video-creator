@@ -1,0 +1,66 @@
+title: "Jerome Powell and the Fed - What It Means for You"
+voice: "adam"
+music: null
+hook:
+  text: "THE FED IS IN CHAOS"
+  duration: 1.5
+  style: glitch
+
+scenes:
+  - narration: "Jerome Powell has not decided on his future at the Federal Reserve Board. And this could change everything about your money."
+    visuals:
+      type: stock_video
+      query: "federal reserve building washington"
+    text_overlay:
+      content: "Powell's Future Uncertain"
+      style: title
+      position: center
+    icon: "warning"
+
+  - narration: "The Fed controls interest rates. That means they control how much you pay on your mortgage, your car loan, your credit cards, and how much your savings earn."
+    visuals:
+      type: stock_video
+      query: "interest rates finance bank"
+    text_overlay:
+      content: "Interest Rates = Your Money"
+      style: lower_third
+      position: bottom
+
+  - narration: "If Powell steps down, a new Fed chair could take a completely different approach to rate cuts. That means markets could swing big in either direction."
+    visuals:
+      type: stock_video
+      query: "stock market volatility trading"
+    text_overlay:
+      content: "Markets Could Swing"
+      style: lower_third
+      position: bottom
+    icon: "chart"
+
+  - narration: "Here's what you should do right now. Don't panic. Uncertainty is when most people make their worst financial decisions."
+    visuals:
+      type: stock_image
+      query: "calm person thinking strategy"
+    text_overlay:
+      content: "Don't Panic"
+      style: title
+      position: center
+
+  - narration: "If you have a variable rate loan, now is the time to consider locking in a fixed rate. If you're investing, stay the course and keep dollar cost averaging."
+    visuals:
+      type: stock_video
+      query: "person reviewing financial documents"
+    text_overlay:
+      content: "Lock In. Stay Course."
+      style: lower_third
+      position: bottom
+    icon: "target"
+
+  - narration: "The people who win in times of uncertainty are the ones who stay informed and stay disciplined. Follow for more updates on how the Fed impacts your wallet."
+    visuals:
+      type: stock_video
+      query: "confident person success finance"
+    text_overlay:
+      content: "Stay Informed. Stay Disciplined."
+      style: title
+      position: center
+    icon: "fire"

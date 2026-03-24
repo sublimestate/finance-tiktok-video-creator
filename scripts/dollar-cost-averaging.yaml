@@ -1,0 +1,65 @@
+title: "Dollar Cost Averaging - The Lazy Way to Get Rich"
+voice: "adam"
+music: null
+hook:
+  text: "LAZY PEOPLE GET RICH"
+  duration: 1.5
+  style: bold
+
+scenes:
+  - narration: "Dollar cost averaging is the laziest and smartest way to invest. Here's why."
+    visuals:
+      type: stock_video
+      query: "money coins stacking"
+    text_overlay:
+      content: "Dollar Cost Averaging"
+      style: title
+      position: center
+
+  - narration: "Instead of trying to time the market, you invest the same amount every single week or month, no matter what the market is doing."
+    visuals:
+      type: stock_video
+      query: "calendar schedule planning"
+    text_overlay:
+      content: "Same Amount. Every Month."
+      style: lower_third
+      position: bottom
+    icon: "clock"
+
+  - narration: "When the market is high, your money buys fewer shares. When the market is low, your money buys more shares. Over time, this averages out your cost."
+    visuals:
+      type: stock_video
+      query: "stock market chart fluctuating"
+    text_overlay:
+      content: "Buy High AND Low"
+      style: lower_third
+      position: bottom
+
+  - narration: "The best part? You completely remove emotion from investing. No panic selling. No fear of missing out."
+    visuals:
+      type: stock_image
+      query: "calm peaceful meditation"
+    text_overlay:
+      content: "No Emotions. No Panic."
+      style: subtitle
+      position: center
+
+  - narration: "Set up an automatic transfer to your brokerage account, pick an index fund, and forget about it."
+    visuals:
+      type: stock_video
+      query: "person using phone automation"
+    text_overlay:
+      content: "Automate & Forget"
+      style: title
+      position: center
+    icon: "check"
+
+  - narration: "Time in the market always beats timing the market. Start dollar cost averaging today."
+    visuals:
+      type: stock_video
+      query: "sunrise horizon new beginning"
+    text_overlay:
+      content: "Time > Timing"
+      style: title
+      position: center
+    icon: "rocket"

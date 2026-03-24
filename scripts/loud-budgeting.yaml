@@ -1,0 +1,63 @@
+title: "Loud Budgeting Changed My Life"
+voice: "adam"
+music: null
+hook:
+  text: "THIS TREND SAVES THOUSANDS"
+  duration: 1.5
+  style: glitch
+
+scenes:
+  - narration: "Loud budgeting is the hottest money trend right now. And it actually works."
+    visuals:
+      type: stock_video
+      query: "friends talking coffee shop"
+    text_overlay:
+      content: "LOUD BUDGETING"
+      style: title
+      position: center
+
+  - narration: "Here's how it works. Instead of secretly saying no to things you can't afford, you say it loud and proud."
+    visuals:
+      type: stock_video
+      query: "confident person talking"
+    text_overlay:
+      content: "Say It Loud & Proud"
+      style: lower_third
+      position: bottom
+
+  - narration: "Your friends want to go to an expensive dinner? You say: I'm not spending on that this month, I'm saving for my goals."
+    visuals:
+      type: stock_video
+      query: "restaurant dinner expensive"
+    text_overlay:
+      content: "No Shame in Saving"
+      style: lower_third
+      position: bottom
+
+  - narration: "It removes the guilt and the pressure to keep up with everyone else's spending habits."
+    visuals:
+      type: stock_image
+      query: "person relaxed peaceful"
+    text_overlay:
+      content: "No More Guilt"
+      style: subtitle
+      position: center
+
+  - narration: "The truth is, most people are broke trying to look rich. Loud budgeters get rich by not caring what they look like."
+    visuals:
+      type: stock_video
+      query: "money savings jar growing"
+    text_overlay:
+      content: "Get Rich Quietly"
+      style: title
+      position: center
+
+  - narration: "Start loud budgeting today. Your bank account will thank you."
+    visuals:
+      type: stock_video
+      query: "happy person phone banking"
+    text_overlay:
+      content: "Start Today"
+      style: title
+      position: center
+    icon: "dollar"

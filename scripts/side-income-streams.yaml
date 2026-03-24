@@ -1,0 +1,75 @@
+title: "5 Side Income Streams You Can Start Today"
+voice: "adam"
+music: null
+hook:
+  text: "ONE INCOME IS RISKY"
+  duration: 1.5
+  style: glitch
+
+scenes:
+  - narration: "Gen Z is turning life into a giant list of income streams. Here are five you can start right now."
+    visuals:
+      type: stock_video
+      query: "young person working laptop entrepreneur"
+    text_overlay:
+      content: "5 Income Streams"
+      style: title
+      position: center
+    icon: "fire"
+
+  - narration: "Number one: dividend investing. Buy stocks that pay you just for holding them. Even fifty dollars a month can snowball over time."
+    visuals:
+      type: stock_video
+      query: "money growing investment returns"
+    text_overlay:
+      content: "#1 Dividend Investing"
+      style: lower_third
+      position: bottom
+    icon: "dollar"
+
+  - narration: "Number two: digital products. Create a template, an ebook, or a course once, and sell it forever. Zero inventory, pure profit."
+    visuals:
+      type: stock_video
+      query: "person working creative digital design"
+    text_overlay:
+      content: "#2 Digital Products"
+      style: lower_third
+      position: bottom
+
+  - narration: "Number three: high yield savings accounts. Park your emergency fund somewhere paying four to five percent interest. Your money should never sit still."
+    visuals:
+      type: stock_image
+      query: "bank savings money secure"
+    text_overlay:
+      content: "#3 High-Yield Savings"
+      style: lower_third
+      position: bottom
+
+  - narration: "Number four: freelancing your skills. Writing, design, coding, video editing. Someone will pay you for what you already know."
+    visuals:
+      type: stock_video
+      query: "freelancer working computer home office"
+    text_overlay:
+      content: "#4 Freelance Skills"
+      style: lower_third
+      position: bottom
+
+  - narration: "Number five: content creation. Share what you learn about money and finance. The audience is massive and growing every day."
+    visuals:
+      type: stock_video
+      query: "content creator filming video camera"
+    text_overlay:
+      content: "#5 Content Creation"
+      style: lower_third
+      position: bottom
+    icon: "target"
+
+  - narration: "One income stream is risky. Multiple income streams is freedom. Start building yours today."
+    visuals:
+      type: stock_video
+      query: "freedom success celebration"
+    text_overlay:
+      content: "Build Your Freedom"
+      style: title
+      position: center
+    icon: "rocket"

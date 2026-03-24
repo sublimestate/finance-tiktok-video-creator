@@ -1,0 +1,28 @@
+api_keys:
+  elevenlabs: "your-elevenlabs-api-key"
+  fish_audio: "your-fish-audio-api-key"  # optional TTS fallback (https://fish.audio)
+  pexels: "your-pexels-api-key"
+  pixabay: "your-pixabay-api-key"  # optional fallback
+  google_api_key: ""  # Google Custom Search API key (for news images)
+  google_cx: ""  # Google Custom Search Engine ID
+
+output:
+  width: 1080
+  height: 1920
+  fps: 30
+  crf: 20
+
+tts:
+  default_voice: "adam"
+  model: "eleven_multilingual_v2"
+  stability: 0.5
+  similarity_boost: 0.75
+  fish_audio_reference_id: ""  # optional Fish.audio voice/reference ID
+
+assets:
+  prefer_api: pexels
+  max_video_length: 15
+  scene_padding: 0.3
+
+remotion:
+  timeout: 300

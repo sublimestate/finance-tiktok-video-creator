@@ -1,0 +1,66 @@
+title: "The Question That Saves You Thousands"
+voice: "adam"
+music: null
+hook:
+  text: "ONE QUESTION. THOUSANDS SAVED."
+  duration: 1.5
+  style: zoom
+
+scenes:
+  - narration: "There's one question that separates people who build wealth from people who stay broke."
+    visuals:
+      type: stock_video
+      query: "person thinking decision crossroads"
+    text_overlay:
+      content: "One Question"
+      style: title
+      position: center
+    icon: "lightbulb"
+
+  - narration: "Before you buy anything, ask yourself: Do I want this, or do I want people to know I have it?"
+    visuals:
+      type: stock_video
+      query: "shopping luxury store"
+    text_overlay:
+      content: "Do I Want It?"
+      style: title
+      position: center
+
+  - narration: "That designer bag? You might just want the status. That new car? Maybe your current one works perfectly fine."
+    visuals:
+      type: stock_video
+      query: "luxury car showroom"
+    text_overlay:
+      content: "Status vs. Value"
+      style: lower_third
+      position: bottom
+    icon: "warning"
+
+  - narration: "This isn't about never spending money. It's about spending on things that actually make your life better, not just your Instagram."
+    visuals:
+      type: stock_image
+      query: "happy simple lifestyle outdoors"
+    text_overlay:
+      content: "Spend With Purpose"
+      style: lower_third
+      position: bottom
+
+  - narration: "The average person spends over twelve thousand dollars a year on things they don't need. That's twelve thousand dollars that could be invested."
+    visuals:
+      type: stock_video
+      query: "calculator money budgeting"
+    text_overlay:
+      content: "$12,000/Year Wasted"
+      style: title
+      position: center
+    icon: "fire"
+
+  - narration: "Next time you're about to swipe that card, pause and ask the question. Your future millionaire self is watching."
+    visuals:
+      type: stock_video
+      query: "credit card payment decision"
+    text_overlay:
+      content: "Pause Before You Swipe"
+      style: title
+      position: center
+    icon: "target"

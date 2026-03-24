@@ -1,0 +1,68 @@
+title: "Gold Just Crashed - Heres Why"
+voice: "adam"
+music: null
+character: true
+hook:
+  text: "GOLD IS DROPPING"
+  duration: 1.5
+  style: bold
+
+scenes:
+  - narration: "Gold just hit a one month low. And it's all because of the strong dollar. Here's what you need to know."
+    visuals:
+      type: stock_video
+      query: "gold bars bullion"
+    text_overlay:
+      content: "Gold Hits 1-Month Low"
+      style: title
+      position: center
+    icon: "chart"
+
+  - narration: "When the dollar gets stronger, gold gets cheaper. Why? Because gold is priced in dollars. A stronger dollar means you need fewer dollars to buy the same amount of gold."
+    visuals:
+      type: stock_video
+      query: "us dollar currency bills"
+    text_overlay:
+      content: "Strong Dollar = Cheap Gold"
+      style: lower_third
+      position: bottom
+
+  - narration: "The dollar is surging right now because of uncertainty around the Fed and interest rates staying higher for longer than expected."
+    visuals:
+      type: stock_video
+      query: "federal reserve interest rates economy"
+    text_overlay:
+      content: "Rates Higher for Longer"
+      style: lower_third
+      position: bottom
+    icon: "warning"
+
+  - narration: "So is this a buying opportunity or a sign to stay away? If you're a long term investor, gold dips like this have historically been great entry points."
+    visuals:
+      type: stock_video
+      query: "investor thinking decision chart"
+    text_overlay:
+      content: "Buy the Dip?"
+      style: title
+      position: center
+    icon: "lightbulb"
+
+  - narration: "Gold has been a store of value for thousands of years. It protects against inflation and currency devaluation. One bad month doesn't change that."
+    visuals:
+      type: stock_image
+      query: "gold coins treasure wealth"
+    text_overlay:
+      content: "Thousands of Years of Value"
+      style: lower_third
+      position: bottom
+    icon: "dollar"
+
+  - narration: "Watch the dollar index closely. When it starts to weaken, gold will bounce back. Stay informed and don't make emotional decisions."
+    visuals:
+      type: stock_video
+      query: "stock market screen trading data"
+    text_overlay:
+      content: "Watch. Wait. Win."
+      style: title
+      position: center
+    icon: "target"

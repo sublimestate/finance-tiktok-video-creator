@@ -1,0 +1,67 @@
+title: "Powell Has Not Decided on Fed Future"
+voice: "adam"
+music: null
+character: true
+hook:
+  text: "FED CHAIR IN DOUBT"
+  duration: 1.5
+  style: glitch
+
+scenes:
+  - narration: "Breaking news. Jerome Powell has not decided if he will stay on the Federal Reserve Board. This is huge."
+    visuals:
+      type: news_image
+      query: "Jerome Powell Federal Reserve 2026"
+    text_overlay:
+      content: "Powell's Future Uncertain"
+      style: title
+      position: center
+
+  - narration: "Powell has been the Fed chair since 2018. His decisions on interest rates affect every single American."
+    visuals:
+      type: news_image
+      query: "Jerome Powell press conference Federal Reserve"
+    text_overlay:
+      content: "Fed Chair Since 2018"
+      style: lower_third
+      position: bottom
+
+  - narration: "If he leaves, the next chair could take a completely different approach. Rate cuts could speed up or slow down dramatically."
+    visuals:
+      type: news_image
+      query: "Federal Reserve interest rate decision"
+    text_overlay:
+      content: "Rate Cuts at Risk"
+      style: title
+      position: center
+    icon: "warning"
+
+  - narration: "What does this mean for your money? Your mortgage rates, car loans, and credit card interest could all shift."
+    visuals:
+      type: news_image
+      query: "mortgage rates housing market 2026"
+    text_overlay:
+      content: "Your Rates Could Change"
+      style: lower_third
+      position: bottom
+    icon: "dollar"
+
+  - narration: "The stock market hates uncertainty. Expect volatility until we get clarity on Powell's decision."
+    visuals:
+      type: news_image
+      query: "stock market volatility Wall Street"
+    text_overlay:
+      content: "Markets Hate Uncertainty"
+      style: title
+      position: center
+    icon: "chart"
+
+  - narration: "My advice? Don't panic. Stay invested. Keep dollar cost averaging. This is noise, not a reason to change your strategy."
+    visuals:
+      type: news_image
+      query: "calm investor strategy long term"
+    text_overlay:
+      content: "Stay the Course"
+      style: title
+      position: center
+    icon: "target"

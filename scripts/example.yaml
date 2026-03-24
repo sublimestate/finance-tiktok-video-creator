@@ -1,0 +1,64 @@
+title: "5 Money Mistakes in Your 20s"
+voice: "adam"
+music: null
+hook:
+  text: "STOP WASTING MONEY"
+  duration: 1.5
+  style: bold
+
+scenes:
+  - narration: "Most people in their 20s make these five critical money mistakes."
+    visuals:
+      type: stock_video
+      query: "money finance city"
+    text_overlay:
+      content: "5 Money Mistakes"
+      style: title
+      position: center
+
+  - narration: "Number one: not having an emergency fund. Without one, a single unexpected expense can spiral into debt."
+    visuals:
+      type: stock_image
+      query: "empty wallet"
+    text_overlay:
+      content: "#1 No Emergency Fund"
+      style: lower_third
+      position: bottom
+    icon: "warning"
+
+  - narration: "Number two: ignoring your credit score. Your credit score affects everything from loan rates to apartment applications."
+    visuals:
+      type: stock_video
+      query: "credit card payment"
+    text_overlay:
+      content: "#2 Ignoring Credit Score"
+      style: lower_third
+      position: bottom
+
+  - narration: "Number three: not investing early. Time in the market beats timing the market, every single time."
+    visuals:
+      type: stock_video
+      query: "stock market chart growth"
+    text_overlay:
+      content: "#3 Not Investing Early"
+      style: lower_third
+      position: bottom
+    icon: "chart"
+
+  - narration: "Number four: lifestyle inflation. Just because you earn more doesn't mean you should spend more."
+    visuals:
+      type: stock_image
+      query: "luxury shopping bags"
+    text_overlay:
+      content: "#4 Lifestyle Inflation"
+      style: lower_third
+      position: bottom
+
+  - narration: "Number five: no financial education. Take time to learn about money. Your future self will thank you."
+    visuals:
+      type: stock_video
+      query: "person reading books education"
+    text_overlay:
+      content: "#5 No Financial Education"
+      style: title
+      position: center

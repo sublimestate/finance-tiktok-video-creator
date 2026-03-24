@@ -1,0 +1,66 @@
+title: "Dupe Culture Is Making Gen Z Richer"
+voice: "adam"
+music: null
+hook:
+  text: "STOP PAYING FULL PRICE"
+  duration: 1.5
+  style: glitch
+
+scenes:
+  - narration: "Dupe culture is one of the smartest money moves Gen Z has ever made. Here's why."
+    visuals:
+      type: stock_video
+      query: "shopping bags store fashion"
+    text_overlay:
+      content: "Dupe Culture"
+      style: title
+      position: center
+    icon: "fire"
+
+  - narration: "A dupe is a cheaper alternative to an expensive product that looks or works just as well. Not a fake. Not a knockoff. A legitimate, affordable alternative."
+    visuals:
+      type: stock_video
+      query: "comparing products side by side"
+    text_overlay:
+      content: "Dupes ≠ Fakes"
+      style: lower_third
+      position: bottom
+
+  - narration: "That sixty dollar moisturizer from a luxury brand? There's a nine dollar version with the same ingredients. Same results, fifty dollars saved."
+    visuals:
+      type: stock_image
+      query: "skincare beauty products"
+    text_overlay:
+      content: "$60 vs $9"
+      style: title
+      position: center
+    icon: "dollar"
+
+  - narration: "The average person spends thousands every year on brand names when identical alternatives exist. You're not paying for quality. You're paying for a logo."
+    visuals:
+      type: stock_video
+      query: "luxury brand shopping expensive"
+    text_overlay:
+      content: "You're Paying for a Logo"
+      style: lower_third
+      position: bottom
+    icon: "warning"
+
+  - narration: "Smart money knows the difference between value and vanity. Every dollar you save on a dupe is a dollar you can invest."
+    visuals:
+      type: stock_video
+      query: "money saving piggy bank investing"
+    text_overlay:
+      content: "Value Over Vanity"
+      style: subtitle
+      position: center
+
+  - narration: "Next time you want something expensive, search for the dupe first. Your wallet and your portfolio will thank you."
+    visuals:
+      type: stock_video
+      query: "person searching phone smart shopping"
+    text_overlay:
+      content: "Search the Dupe First"
+      style: title
+      position: center
+    icon: "target"

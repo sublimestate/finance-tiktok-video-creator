@@ -1,0 +1,33 @@
+# Config with API keys
+config.yaml
+
+# Generated content
+tmp/
+output/
+
+# Video/audio files
+*.mp4
+*.mp3
+*.wav
+*.webm
+*.mov
+*.avi
+*.mkv
+
+# Node
+node_modules/
+remotion/node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
