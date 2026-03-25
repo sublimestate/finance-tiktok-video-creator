@@ -9,7 +9,7 @@ import uuid
 import yaml
 from pathlib import Path
 
-from clipper.download import download_video
+from clipper.download import download_video, download_from_oci
 from clipper.transcript import get_transcript, format_transcript_for_ai
 from clipper.analyze import analyze_transcript_ollama, analyze_transcript_anthropic, analyze_transcript_oci
 from clipper.facedetect import detect_face, detect_face_in_clip
@@ -72,7 +72,12 @@ def main():
     if args.skip_download and os.path.exists(video_path):
         print(f"  Using cached: {video_path}")
     else:
-        video_path = download_video(video_id, str(Path(data_dir) / "videos"), cookies_file=cookies_file)
+        # Try OCI Object Storage first, then yt-dlp
+        try:
+            video_path = download_from_oci(video_id, str(Path(data_dir) / "videos"))
+        except Exception:
+            print("  Not found in OCI storage, trying yt-dlp...")
+            video_path = download_video(video_id, str(Path(data_dir) / "videos"), cookies_file=cookies_file)
         print(f"  → {video_path}")
 
     # --- Stage 2: Transcript ---
