@@ -15,7 +15,8 @@ _MODEL = None
 # Prefer large model, fall back to small
 _LARGE_MODEL = str(Path(__file__).parent.parent / "data" / "models" / "vosk-model-en-us-0.22")
 _SMALL_MODEL = str(Path(__file__).parent.parent / "data" / "models" / "vosk-model-small-en-us-0.15")
-_MODEL_PATH = _LARGE_MODEL if os.path.exists(_LARGE_MODEL) else _SMALL_MODEL
+# Use small model by default to avoid OOM with HD videos
+_MODEL_PATH = _SMALL_MODEL if os.path.exists(_SMALL_MODEL) else _LARGE_MODEL
 
 
 def _get_model():
