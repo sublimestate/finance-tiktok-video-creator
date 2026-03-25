@@ -3,6 +3,7 @@ api_keys:
   fish_audio: "your-fish-audio-api-key"  # optional TTS fallback (https://fish.audio)
   pexels: "your-pexels-api-key"
   pixabay: "your-pixabay-api-key"  # optional fallback
+  anthropic: ""  # Anthropic API key for clip analysis (or use ANTHROPIC_API_KEY env)
   google_api_key: ""  # Google Custom Search API key (for news images)
   google_cx: ""  # Google Custom Search Engine ID
 

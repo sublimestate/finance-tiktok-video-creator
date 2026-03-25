@@ -4,6 +4,7 @@ config.yaml
 # Generated content
 tmp/
 output/
+data/
 
 # Video/audio files
 *.mp4
@@ -27,6 +28,9 @@ __pycache__/
 # Environment
 .env
 .env.*
+
+# Binaries
+yt-dlp
 
 # OS
 .DS_Store
