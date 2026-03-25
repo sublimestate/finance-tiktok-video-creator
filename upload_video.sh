@@ -25,8 +25,11 @@ fi
 
 URL="$1"
 
-# Extract video ID
-VIDEO_ID=$(echo "$URL" | grep -oP '(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})' | head -1 | sed 's/v=//' | sed 's/youtu.be\///')
+# Extract video ID (works on both macOS and Linux)
+VIDEO_ID=$(echo "$URL" | sed -n 's/.*v=\([a-zA-Z0-9_-]\{11\}\).*/\1/p')
+if [ -z "$VIDEO_ID" ]; then
+    VIDEO_ID=$(echo "$URL" | sed -n 's/.*youtu\.be\/\([a-zA-Z0-9_-]\{11\}\).*/\1/p')
+fi
 if [ -z "$VIDEO_ID" ]; then
     VIDEO_ID="$URL"  # Assume it's already an ID
 fi

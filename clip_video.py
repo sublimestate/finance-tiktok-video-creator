@@ -14,7 +14,6 @@ from clipper.transcript import get_transcript, format_transcript_for_ai
 from clipper.analyze import analyze_transcript_ollama, analyze_transcript_anthropic, analyze_transcript_oci
 from clipper.facedetect import detect_face, detect_face_in_clip
 from clipper.captions import generate_captions_file
-from clipper.transcribe_clip import transcribe_clip
 from clipper.render import render_clip
 
 
@@ -143,23 +142,12 @@ def main():
             print("    Detecting face...")
             face_pos = detect_face_in_clip(video_path, clip["startTime"], clip["endTime"])
 
-        # Captions
+        # Captions — use full video transcript (sliced) instead of per-clip transcription
         captions_path = None
         if not args.no_captions:
-            print("    Transcribing for captions...")
-            clip_segments = transcribe_clip(video_path, clip["startTime"], clip["endTime"])
-            if clip_segments:
-                adjusted_segments = [
-                    {"start": s["start"] + clip["startTime"],
-                     "end": s["end"] + clip["startTime"],
-                     "text": s["text"]}
-                    for s in clip_segments
-                ]
-            else:
-                adjusted_segments = segments
-
+            print("    Generating captions from transcript...")
             captions_path = generate_captions_file(
-                clip_id, adjusted_segments, clip["startTime"], clip["endTime"], captions_dir
+                clip_id, segments, clip["startTime"], clip["endTime"], captions_dir
             )
 
         output_path = str(Path(output_dir) / f"{clip_id}_{i+1}.mp4")

@@ -73,7 +73,7 @@ def render_clip(
         "-map", "0:a?",
         "-c:v", "libx264",
         "-crf", "23",
-        "-preset", "fast",
+        "-preset", "ultrafast",
         "-c:a", "aac",
         "-b:a", "128k",
         "-movflags", "+faststart",
@@ -81,7 +81,7 @@ def render_clip(
         output_path,
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg clip render failed: {result.stderr[-500:]}")
 
