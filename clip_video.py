@@ -122,16 +122,17 @@ def main():
         print(f"    {i+1}. [{clip['startTime']:.0f}s-{clip['endTime']:.0f}s] "
               f"Score: {clip['score']} — {clip['title']}")
 
-    # --- Stage 4 + 5: Per-clip face detection + render ---
+    # --- Stage 4 + 5: Prepare + render clips (parallel) ---
     print("=" * 50)
-    print("STAGE 4-5: Detecting faces & rendering clips...")
+    print("STAGE 4-5: Preparing & rendering clips...")
     captions_dir = str(Path(data_dir) / "captions")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    output_paths = []
+    # Prepare all clips first (captions, face detection) — sequential due to vosk model
+    clip_jobs = []
     for i, clip in enumerate(clips):
         clip_id = str(uuid.uuid4())[:8]
-        print(f"\n  Clip {i+1}/{len(clips)}: {clip['title']}")
+        print(f"\n  Preparing clip {i+1}/{len(clips)}: {clip['title']}")
         print(f"    Time: {clip['startTime']:.0f}s - {clip['endTime']:.0f}s "
               f"({clip['endTime'] - clip['startTime']:.0f}s)")
 
@@ -139,17 +140,13 @@ def main():
         if args.skip_face:
             face_pos = {"found": False}
         else:
-            print("    Detecting face in clip...")
+            print("    Detecting face...")
             face_pos = detect_face_in_clip(video_path, clip["startTime"], clip["endTime"])
-            if face_pos["found"]:
-                print(f"    Face at ({face_pos['x']}, {face_pos['y']})")
-            else:
-                print("    No face, using blurred fallback")
 
         # Captions
         captions_path = None
         if not args.no_captions:
-            print("    Transcribing clip for captions...")
+            print("    Transcribing for captions...")
             clip_segments = transcribe_clip(video_path, clip["startTime"], clip["endTime"])
             if clip_segments:
                 adjusted_segments = [
@@ -158,31 +155,46 @@ def main():
                      "text": s["text"]}
                     for s in clip_segments
                 ]
-                print(f"    Transcribed {len(clip_segments)} segments")
             else:
                 adjusted_segments = segments
-                print("    Using full video transcript (fallback)")
 
-            print("    Generating captions...")
             captions_path = generate_captions_file(
                 clip_id, adjusted_segments, clip["startTime"], clip["endTime"], captions_dir
             )
 
-        # Render
-        print("    Rendering...")
         output_path = str(Path(output_dir) / f"{clip_id}_{i+1}.mp4")
-        render_clip(
-            input_path=video_path,
-            output_path=output_path,
-            start_time=clip["startTime"],
-            end_time=clip["endTime"],
-            captions_file=captions_path,
-            clip_title=None if args.no_title else clip["title"],
-            face_position=face_pos,
-        )
-        file_size = os.path.getsize(output_path) / (1024 * 1024)
-        print(f"    → {output_path} ({file_size:.1f} MB)")
-        output_paths.append(output_path)
+        clip_jobs.append({
+            "input_path": video_path,
+            "output_path": output_path,
+            "start_time": clip["startTime"],
+            "end_time": clip["endTime"],
+            "captions_file": captions_path,
+            "clip_title": None if args.no_title else clip["title"],
+            "face_position": face_pos,
+        })
+
+    # Render all clips in parallel
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    print(f"\n  Rendering {len(clip_jobs)} clips in parallel...")
+
+    def _render_one(job):
+        render_clip(**job)
+        return job["output_path"]
+
+    output_paths = []
+    with ThreadPoolExecutor(max_workers=min(3, len(clip_jobs))) as executor:
+        futures = {executor.submit(_render_one, job): i for i, job in enumerate(clip_jobs)}
+        for future in as_completed(futures):
+            idx = futures[future]
+            try:
+                path = future.result()
+                file_size = os.path.getsize(path) / (1024 * 1024)
+                print(f"    ✓ Clip {idx+1} → {path} ({file_size:.1f} MB)")
+                output_paths.append(path)
+            except Exception as e:
+                print(f"    ✗ Clip {idx+1} failed: {e}")
+
+    output_paths.sort()  # Sort by filename for consistent ordering
 
     print("\n" + "=" * 50)
     print(f"Done! Generated {len(output_paths)} clips in {output_dir}/")
