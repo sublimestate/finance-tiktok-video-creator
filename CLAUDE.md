@@ -17,6 +17,26 @@ Two tools: (1) Create original TikTok videos from YAML scripts with TTS, overlay
 - **OCI Object Storage** — HD video upload/download (bucket: finance-videos)
 - **Lottie** — animated character via @remotion/lottie
 
+## Setup
+```bash
+# System deps (already installed on server)
+# ffmpeg, deno (~/.deno/bin), opencv-python-headless, vosk
+
+# Python deps
+python3 -m pip install pyyaml requests python-slugify youtube-transcript-api vosk opencv-python-headless oci
+
+# Remotion deps
+cd remotion && npm install && cd ..
+
+# Config
+cp config.yaml.example config.yaml  # then fill in API keys
+```
+
+## Config Keys (config.yaml)
+Required: `elevenlabs` (TTS), `pexels` (stock footage)
+Optional: `fish_audio` (TTS fallback), `serpapi_key` (news images), `google_api_key`/`google_cx` (Google images), `anthropic` (clip analysis)
+OCI GenAI uses Instance Principal auth — no key needed on this server
+
 ## Project Structure
 ```
 create_video.py          # CLI: create videos from YAML scripts
