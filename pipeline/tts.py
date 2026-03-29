@@ -168,13 +168,17 @@ def _generate_edge_tts(
 
 # Map of friendly voice names to Edge TTS voice IDs
 EDGE_VOICES = {
+    "ryan": "en-GB-RyanNeural",
+    "thomas": "en-GB-ThomasNeural",
     "guy": "en-US-GuyNeural",
     "andrew": "en-US-AndrewNeural",
+    "eric": "en-US-EricNeural",
+    "christopher": "en-US-ChristopherNeural",
+    "brian": "en-US-BrianNeural",
     "davis": "en-US-DavisNeural",
-    "tony": "en-US-TonyNeural",
-    "jason": "en-US-JasonNeural",
     "jenny": "en-US-JennyNeural",
     "aria": "en-US-AriaNeural",
+    "adam": "en-GB-RyanNeural",  # Map adam (ElevenLabs default) to Ryan
 }
 
 
@@ -319,7 +323,7 @@ def generate_tts(
     # --- Attempt 3: Edge TTS (free, no API key) ---
     logger.info("Falling back to Edge TTS (free)...")
     try:
-        edge_voice = EDGE_VOICES.get(voice_name.lower(), "en-US-GuyNeural")
+        edge_voice = EDGE_VOICES.get(voice_name.lower(), "en-GB-RyanNeural")
         duration, word_timings = _generate_edge_tts(
             text=text,
             output_path=output_path,
