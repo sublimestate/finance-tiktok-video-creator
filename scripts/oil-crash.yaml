@@ -1,0 +1,93 @@
+title: "Oil Just Crashed 5 Percent"
+voice: "adam"
+music: null
+character: false
+hook:
+  text: "OIL IS CRASHING"
+  duration: 1.2
+  style: bold
+
+scenes:
+  - narration: "Oil just crashed over five percent overnight."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "oil price crash chart dropping"
+    text_overlay:
+      content: "Oil Down 5%+"
+      style: title
+      position: center
+
+  - narration: "Brent crude dropped below a hundred dollars to ninety eight."
+    duration: 3
+    visuals:
+      type: news_image
+      query: "brent crude oil price below 100"
+    text_overlay:
+      content: "Brent Below $100"
+      style: title
+      position: center
+    icon: "chart"
+
+  - narration: "WTI fell to eighty seven fifty one."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "WTI crude oil trading screen"
+    text_overlay:
+      content: "WTI: $87.51"
+      style: lower_third
+      position: bottom
+
+  - narration: "Two things caused this. Middle East tensions are cooling down."
+    duration: 3
+    visuals:
+      type: news_image
+      query: "Middle East peace diplomacy negotiations"
+    text_overlay:
+      content: "Tensions Cooling"
+      style: title
+      position: center
+
+  - narration: "And US crude inventories are building up."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "US oil reserves crude inventory storage"
+    text_overlay:
+      content: "US Inventories Up"
+      style: lower_third
+      position: bottom
+    icon: "warning"
+
+  - narration: "More supply plus less risk equals lower prices."
+    duration: 3
+    visuals:
+      type: news_image
+      query: "oil supply demand economics"
+    text_overlay:
+      content: "Supply Up = Price Down"
+      style: title
+      position: center
+
+  - narration: "Gas prices could drop next. Watch this space."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "gas station fuel prices dropping"
+    text_overlay:
+      content: "Gas Prices Next?"
+      style: title
+      position: center
+    icon: "dollar"
+
+  - narration: "Follow for daily market updates."
+    duration: 2
+    visuals:
+      type: news_image
+      query: "stock market financial news update"
+    text_overlay:
+      content: "Follow for Updates"
+      style: title
+      position: center
+    icon: "target"

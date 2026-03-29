@@ -1,0 +1,94 @@
+title: "Gold Just Hit 4400"
+voice: "adam"
+music: null
+character: true
+hook:
+  text: "GOLD IS AT $4,400"
+  duration: 1.2
+  style: glitch
+
+scenes:
+  - narration: "Gold just hit forty four hundred dollars an ounce."
+    duration: 3
+    visuals:
+      type: news_image
+      query: "gold bars bullion close up"
+    text_overlay:
+      content: "$4,400/oz"
+      style: title
+      position: top
+
+  - narration: "That's near all time highs."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "gold price chart all time high 2026"
+    text_overlay:
+      content: "All-Time Highs"
+      style: title
+      position: top
+    icon: "chart"
+
+  - narration: "The dollar is weakening."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "US dollar falling declining chart"
+    text_overlay:
+      content: "Dollar Weakening"
+      style: lower_third
+      position: bottom
+
+  - narration: "Inflation fears are back."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "inflation grocery prices rising"
+    text_overlay:
+      content: "Inflation Back"
+      style: lower_third
+      position: bottom
+    icon: "fire"
+
+  - narration: "Central banks are buying gold at record levels."
+    duration: 3
+    visuals:
+      type: news_image
+      query: "central bank gold reserves vault"
+    text_overlay:
+      content: "Banks Buying Gold"
+      style: title
+      position: top
+    icon: "dollar"
+
+  - narration: "Smart money is hedging."
+    duration: 2.5
+    visuals:
+      type: news_image
+      query: "investor portfolio hedge strategy"
+    text_overlay:
+      content: "Smart Money Hedging"
+      style: lower_third
+      position: bottom
+
+  - narration: "If you're not paying attention, you're falling behind."
+    duration: 3
+    visuals:
+      type: news_image
+      query: "stock market trader watching screens"
+    text_overlay:
+      content: "Pay Attention"
+      style: title
+      position: top
+    icon: "warning"
+
+  - narration: "Follow for more market updates."
+    duration: 2
+    visuals:
+      type: news_image
+      query: "financial news market update"
+    text_overlay:
+      content: "Follow for More"
+      style: title
+      position: top
+    icon: "target"
