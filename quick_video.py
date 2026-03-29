@@ -70,11 +70,23 @@ TOPIC: {topic}
 Requirements:
 - 8 scenes, each 2-3 seconds of narration (SHORT punchy sentences)
 - Total video should be 20-30 seconds
-- First scene must be a strong hook
+- First scene must be a STRONG HOOK that makes people stop scrolling
 - Last scene must be a CTA ("Follow for more")
 - Mix of video clip searches and news image searches for visuals
 - Bold text overlays on every scene
 - Use actual numbers and data when available
+
+HOOK RULES (most important part):
+- The hook text must create URGENCY or CURIOSITY
+- Use one of these proven patterns:
+  * Numbers: "YOUR MONEY LOST $2,400 TODAY"
+  * Fear: "THIS WILL DESTROY YOUR SAVINGS"
+  * Curiosity gap: "NOBODY IS TALKING ABOUT THIS"
+  * Contrarian: "STOP INVESTING RIGHT NOW"
+  * Breaking: "BREAKING: MARKETS JUST CRASHED"
+- Keep it under 6 words, ALL CAPS
+- The hook style should be "glitch" for urgency or "bold" for breaking news
+- The first narration scene should IMMEDIATELY expand on the hook with a shocking stat or claim
 
 Return ONLY valid YAML matching this exact format (no markdown, no explanation):
 
@@ -82,9 +94,9 @@ title: "catchy title"
 voice: "adam"
 character: false
 hook:
-  text: "HOOK TEXT IN CAPS"
+  text: "HOOK IN CAPS - MAX 6 WORDS"
   duration: 1.2
-  style: bold
+  style: glitch
 scenes:
   - narration: "short punchy sentence"
     duration: 2.5

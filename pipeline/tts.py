@@ -1,5 +1,6 @@
 """TTS generation for video narration with ElevenLabs + Fish.audio fallback."""
 
+import asyncio
 import base64
 import json
 import logging
@@ -146,6 +147,37 @@ def _generate_elevenlabs(
     return duration, word_timings
 
 
+def _generate_edge_tts(
+    text: str,
+    output_path: str,
+    voice: str = "en-US-GuyNeural",
+) -> Tuple[float, List[dict]]:
+    """Generate TTS using Microsoft Edge TTS (free, no API key)."""
+    import edge_tts
+
+    async def _run():
+        communicate = edge_tts.Communicate(text, voice)
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        await communicate.save(output_path)
+
+    asyncio.run(_run())
+    duration = get_audio_duration(output_path)
+    word_timings = _estimate_word_timings(text, duration)
+    return duration, word_timings
+
+
+# Map of friendly voice names to Edge TTS voice IDs
+EDGE_VOICES = {
+    "guy": "en-US-GuyNeural",
+    "andrew": "en-US-AndrewNeural",
+    "davis": "en-US-DavisNeural",
+    "tony": "en-US-TonyNeural",
+    "jason": "en-US-JasonNeural",
+    "jenny": "en-US-JennyNeural",
+    "aria": "en-US-AriaNeural",
+}
+
+
 def _estimate_word_timings(text: str, duration: float) -> List[dict]:
     """Estimate word timings by distributing evenly across duration."""
     words = text.split()
@@ -270,16 +302,31 @@ def generate_tts(
             raise
 
     # --- Attempt 2: Fish.audio fallback ---
-    logger.info("Falling back to Fish.audio for TTS...")
+    if fish_audio_api_key:
+        logger.info("Falling back to Fish.audio for TTS...")
+        try:
+            duration, word_timings = _generate_fish_audio(
+                api_key=fish_audio_api_key,
+                text=text,
+                output_path=output_path,
+                reference_id=fish_audio_reference_id,
+            )
+            logger.info("TTS generated via Fish.audio (fallback) (%s)", output_path)
+            return duration, word_timings
+        except Exception as fallback_exc:
+            logger.warning("Fish.audio fallback also failed: %s", fallback_exc)
+
+    # --- Attempt 3: Edge TTS (free, no API key) ---
+    logger.info("Falling back to Edge TTS (free)...")
     try:
-        duration, word_timings = _generate_fish_audio(
-            api_key=fish_audio_api_key,
+        edge_voice = EDGE_VOICES.get(voice_name.lower(), "en-US-GuyNeural")
+        duration, word_timings = _generate_edge_tts(
             text=text,
             output_path=output_path,
-            reference_id=fish_audio_reference_id,
+            voice=edge_voice,
         )
-        logger.info("TTS generated via Fish.audio (fallback) (%s)", output_path)
+        logger.info("TTS generated via Edge TTS (free fallback) (%s)", output_path)
         return duration, word_timings
-    except Exception as fallback_exc:
-        logger.error("Fish.audio fallback also failed: %s", fallback_exc)
+    except Exception as edge_exc:
+        logger.error("Edge TTS also failed: %s", edge_exc)
         raise

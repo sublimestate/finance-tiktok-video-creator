@@ -1,0 +1,80 @@
+character: false
+hook:
+  duration: 1.2
+  style: glitch
+  text: YOUR MONEY LOST $2,400 TODAY
+scenes:
+- duration: 2.5
+  narration: Inflation hit 2.4% in January 2026.
+  text_overlay:
+    content: Inflation at 2.4%
+    position: center
+    style: title
+  visuals:
+    query: 2026 inflation rate news
+    type: news_video
+- duration: 2.5
+  narration: Your savings APY below 2.4% means losses.
+  text_overlay:
+    content: APY Below Inflation
+    position: bottom
+    style: lower_third
+  visuals:
+    query: savings account APY rates
+    type: news_image
+- duration: 2.5
+  narration: Fed's rate is 3.50% to 3.75%, but it's not enough.
+  text_overlay:
+    content: 'Fed Rate: 3.50%-3.75%'
+    position: center
+    style: title
+  visuals:
+    query: Federal Reserve rate announcement 2026
+    type: news_video
+- duration: 2.5
+  narration: APYs are decreasing and will continue in 2026.
+  text_overlay:
+    content: APYs Dropping Fast
+    position: bottom
+    style: lower_third
+  visuals:
+    query: declining savings rates graph
+    type: news_image
+- duration: 2.5
+  narration: Your cash is losing real value daily.
+  text_overlay:
+    content: Savings Losing Value
+    position: center
+    style: title
+  visuals:
+    query: inflation impact on savings
+    type: news_video
+- duration: 2.5
+  narration: Don't ignore this hidden money drain.
+  text_overlay:
+    content: Hidden Money Loss
+    position: bottom
+    style: lower_third
+  visuals:
+    query: effects of inflation on finances
+    type: news_image
+- duration: 2.5
+  narration: Act now to protect your finances.
+  text_overlay:
+    content: Protect Your Cash
+    position: center
+    style: title
+  visuals:
+    query: financial tips against inflation
+    type: news_video
+- duration: 2.5
+  narration: Follow for more ways to fight inflation.
+  text_overlay:
+    content: Follow for More
+    position: bottom
+    style: lower_third
+  visuals:
+    query: subscribe to finance tips
+    type: news_image
+title: Inflation Killing Your Savings
+voice: adam
