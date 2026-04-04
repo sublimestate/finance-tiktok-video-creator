@@ -14,6 +14,7 @@ from clipper.transcript import get_transcript, format_transcript_for_ai
 from clipper.analyze import analyze_transcript_ollama, analyze_transcript_anthropic, analyze_transcript_oci
 from clipper.facedetect import detect_face, detect_face_in_clip
 from clipper.captions import generate_captions_file
+from clipper.transcribe_clip import transcribe_clip_words
 from clipper.render import render_clip
 
 
@@ -53,6 +54,8 @@ def main():
     parser.add_argument("--no-captions", action="store_true", help="Disable caption generation")
     parser.add_argument("--no-title", action="store_true", help="Disable hook title banner")
     parser.add_argument("--max-clips", type=int, default=5, help="Maximum clips to generate")
+    parser.add_argument("--quality", "-q", default="final", choices=["draft", "final"],
+                        help="Quality preset: draft (fast preview, no face/vosk) or final (full quality)")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -120,6 +123,12 @@ def main():
     for i, clip in enumerate(clips):
         print(f"    {i+1}. [{clip['startTime']:.0f}s-{clip['endTime']:.0f}s] "
               f"Score: {clip['score']} — {clip['title']}")
+        if clip.get("description"):
+            print(f"       📝 {clip['description']}")
+
+    is_draft = args.quality == "draft"
+    if is_draft:
+        print("\n  ⚡ Draft mode: skipping face detection and Vosk word-level timing")
 
     # --- Stage 4 + 5: Prepare + render clips (parallel) ---
     print("=" * 50)
@@ -135,19 +144,25 @@ def main():
         print(f"    Time: {clip['startTime']:.0f}s - {clip['endTime']:.0f}s "
               f"({clip['endTime'] - clip['startTime']:.0f}s)")
 
-        # Per-clip face detection
-        if args.skip_face:
+        # Per-clip face detection (skip in draft mode)
+        if args.skip_face or is_draft:
             face_pos = {"found": False}
         else:
             print("    Detecting face...")
             face_pos = detect_face_in_clip(video_path, clip["startTime"], clip["endTime"])
 
-        # Captions — use full video transcript (sliced) instead of per-clip transcription
+        # Captions — use Vosk word-level timing in final mode, even split in draft
         captions_path = None
         if not args.no_captions:
-            print("    Generating captions from transcript...")
+            print("    Generating captions...")
+            vosk_words = None
+            if not is_draft:
+                vosk_words = transcribe_clip_words(video_path, clip["startTime"], clip["endTime"])
+                if vosk_words:
+                    print(f"    → Vosk: {len(vosk_words)} words with precise timing")
             captions_path = generate_captions_file(
-                clip_id, segments, clip["startTime"], clip["endTime"], captions_dir
+                clip_id, segments, clip["startTime"], clip["endTime"], captions_dir,
+                vosk_words=vosk_words,
             )
 
         output_path = str(Path(output_dir) / f"{clip_id}_{i+1}.mp4")
@@ -159,6 +174,7 @@ def main():
             "captions_file": captions_path,
             "clip_title": None if args.no_title else clip["title"],
             "face_position": face_pos,
+            "draft": is_draft,
         })
 
     # Render all clips in parallel
@@ -186,10 +202,33 @@ def main():
 
     output_paths.sort()  # Sort by filename for consistent ordering
 
+    # Save descriptions alongside clips
+    descriptions = {}
+    for i, clip in enumerate(clips):
+        desc = clip.get("description", "")
+        if desc:
+            descriptions[f"clip_{i+1}"] = {
+                "title": clip["title"],
+                "description": desc,
+                "score": clip["score"],
+            }
+
+    if descriptions:
+        import json
+        desc_path = str(Path(output_dir) / f"{video_id}_descriptions.json")
+        with open(desc_path, "w") as f:
+            json.dump(descriptions, f, indent=2)
+
     print("\n" + "=" * 50)
     print(f"Done! Generated {len(output_paths)} clips in {output_dir}/")
-    for p in output_paths:
+    for i, p in enumerate(output_paths):
         print(f"  {p}")
+        desc = clips[i].get("description", "") if i < len(clips) else ""
+        if desc:
+            print(f"    📝 {desc}")
+
+    if descriptions:
+        print(f"\n  Descriptions saved to: {desc_path}")
 
 
 if __name__ == "__main__":

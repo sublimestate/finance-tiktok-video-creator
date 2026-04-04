@@ -15,6 +15,7 @@ def render_clip(
     captions_file: Optional[str] = None,
     clip_title: Optional[str] = None,
     face_position: Optional[Dict] = None,
+    draft: bool = False,
 ) -> str:
     """Render a vertical 9:16 clip with smart cropping and captions.
 
@@ -104,9 +105,9 @@ def render_clip(
         "-filter_complex", filter_complex,
         "-map", "[out]",
         "-map", "0:a?",
-    ] + get_video_encode_args(crf=23, preset="ultrafast") + [
+    ] + get_video_encode_args(crf=32 if draft else 23, preset="ultrafast") + [
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "64k" if draft else "128k",
         "-movflags", "+faststart",
         "-y",
         output_path,

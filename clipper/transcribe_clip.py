@@ -12,11 +12,10 @@ from vosk import Model, KaldiRecognizer
 
 # Cache the vosk model
 _MODEL = None
-# Prefer large model, fall back to small
+# Prefer large model for better word-level timing accuracy
 _LARGE_MODEL = str(Path(__file__).parent.parent / "data" / "models" / "vosk-model-en-us-0.22")
 _SMALL_MODEL = str(Path(__file__).parent.parent / "data" / "models" / "vosk-model-small-en-us-0.15")
-# Use small model by default to avoid OOM with HD videos
-_MODEL_PATH = _SMALL_MODEL if os.path.exists(_SMALL_MODEL) else _LARGE_MODEL
+_MODEL_PATH = _LARGE_MODEL if os.path.exists(_LARGE_MODEL) else _SMALL_MODEL
 
 
 def _get_model():
@@ -86,6 +85,64 @@ def transcribe_clip(video_path: str, start_time: float, end_time: float) -> List
 
         return segments
 
+    finally:
+        if os.path.exists(tmp_wav.name):
+            os.unlink(tmp_wav.name)
+
+
+def transcribe_clip_words(video_path: str, start_time: float, end_time: float) -> List[Dict]:
+    """Transcribe a clip and return individual word timestamps.
+
+    Returns list of {"word": str, "start": float, "end": float} with
+    timestamps relative to clip start (0-based).
+    """
+    model = _get_model()
+    if model is None:
+        return []
+
+    tmp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    tmp_wav.close()
+
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-ss", str(start_time), "-i", video_path,
+             "-t", str(end_time - start_time),
+             "-ar", "16000", "-ac", "1", "-f", "wav", tmp_wav.name],
+            capture_output=True, timeout=30,
+        )
+
+        rec = KaldiRecognizer(model, 16000)
+        rec.SetWords(True)
+
+        wf = wave.open(tmp_wav.name, "rb")
+        all_words = []
+
+        while True:
+            data = wf.readframes(4000)
+            if len(data) == 0:
+                break
+            if rec.AcceptWaveform(data):
+                result = json.loads(rec.Result())
+                for w in result.get("result", []):
+                    all_words.append({
+                        "word": w["word"],
+                        "start": w["start"],
+                        "end": w["end"],
+                    })
+
+        final = json.loads(rec.FinalResult())
+        for w in final.get("result", []):
+            all_words.append({
+                "word": w["word"],
+                "start": w["start"],
+                "end": w["end"],
+            })
+
+        wf.close()
+        return all_words
+
+    except Exception:
+        return []
     finally:
         if os.path.exists(tmp_wav.name):
             os.unlink(tmp_wav.name)

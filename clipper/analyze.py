@@ -42,7 +42,7 @@ Transcript:
 {transcript}
 
 You MUST respond with valid JSON matching this exact format:
-{{"clips": [{{"title": "catchy title", "startTime": 120, "endTime": 155, "reason": "why this works", "score": 85}}]}}
+{{"clips": [{{"title": "catchy title", "startTime": 120, "endTime": 155, "reason": "why this works", "score": 85, "description": "TikTok description with hook line and hashtags"}}]}}
 
 Rules for the JSON:
 - "title": catchy clickbait-style title, max 80 chars
@@ -50,6 +50,7 @@ Rules for the JSON:
 - "endTime": end time in seconds (number), must be 30-60 seconds after startTime
 - "reason": 1-2 sentences on why this segment would go viral
 - "score": viral potential 1-100
+- "description": a TikTok post description — start with a compelling hook line that makes people stop scrolling (use a quote, bold claim, or shocking stat from the clip), then add exactly 6 relevant hashtags. Max 150 chars total. Example: '"The rich aren\'t paying their fair share" — here\'s the proof 🔥 #taxes #finance #politics #money #wealth #taxtherich'
 
 You MUST return exactly 5 clips. No more, no less. Each clip should be from a different part of the transcript. Respond with ONLY the JSON object, nothing else."""
 
