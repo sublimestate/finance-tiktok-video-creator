@@ -94,10 +94,19 @@ def main():
     print("STAGE 3: Analyzing transcript for viral moments...")
     video_title = args.title or f"YouTube video {video_id}"
 
-    # Truncate transcript if too long (LLMs have context limits)
-    if len(transcript) > 25000:
-        print(f"  Truncating transcript from {len(transcript)} to 25000 chars for AI analysis")
-        transcript = transcript[:25000]
+    # Context limits per AI backend
+    context_limits = {
+        "oci": 200000,      # Gemini 2.5 Flash — 1M tokens (~4M chars), 200K is safe
+        "anthropic": 100000, # Claude — 200K tokens
+        "ollama": 25000,     # Local models �� limited context
+    }
+    max_chars = context_limits.get(args.ai, 25000)
+
+    if len(transcript) > max_chars:
+        print(f"  Truncating transcript from {len(transcript)} to {max_chars} chars for AI analysis")
+        transcript = transcript[:max_chars]
+    else:
+        print(f"  Using full transcript ({len(transcript)} chars)")
 
     if args.ai == "ollama":
         clips = analyze_transcript_ollama(
@@ -107,8 +116,24 @@ def main():
     elif args.ai == "oci":
         clips = analyze_transcript_oci(
             video_title, transcript,
-            model_id="xai.grok-3-mini-fast",
+            model_id="google.gemini-2.5-flash",
         )
+        # Fallback: if Gemini returns too few clips, retry with Grok
+        if len(clips) < args.max_clips:
+            print(f"  Gemini returned {len(clips)} clips, retrying with Grok for better coverage...")
+            grok_transcript = transcript[:25000] if len(transcript) > 25000 else transcript
+            grok_clips = analyze_transcript_oci(
+                video_title, grok_transcript,
+                model_id="xai.grok-3-mini-fast",
+            )
+            # Merge: keep unique clips by checking for time overlap
+            for gc in grok_clips:
+                overlaps = any(
+                    abs(gc["startTime"] - c["startTime"]) < 15 for c in clips
+                )
+                if not overlaps:
+                    clips.append(gc)
+            clips = sorted(clips, key=lambda c: c["score"], reverse=True)
     else:
         api_key = (args.anthropic_key
                    or os.environ.get("ANTHROPIC_API_KEY")

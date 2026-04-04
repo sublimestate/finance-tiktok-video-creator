@@ -130,7 +130,7 @@ scenes:
 - OCI Object Storage upload script names files with full URL — server auto-renames to video ID
 - Remotion WebM VP9 has no alpha on this FFmpeg — use PNG sequence → MOV
 - `zoompan` filter at 1080x1920 extremely slow — use blurred bg + centered image instead
-- Small vosk model only (40MB) — large model (1.8GB) causes OOM with HD videos
+- Dual Vosk models: small (40MB) for fast full-video transcription, large (1.8GB) for accurate per-clip word timing
 - Edge TTS is the reliable free fallback — ElevenLabs/Fish.audio credits expire
 - TTS fallback chain: ElevenLabs → Fish.audio → Edge TTS (always works)
 - FFmpeg `-ss` MUST come BEFORE `-i` for ASS subtitle timing
@@ -143,7 +143,7 @@ scenes:
 
 ## Telegram
 - When receiving a Telegram message, always acknowledge receipt with a quick reply before starting any work
-- When sending rendered clips via Telegram, always include a TikTok description (hook line + max 6 hashtags) with each clip
+- When sending rendered clips via Telegram, send each clip's TikTok description (hook line + max 6 hashtags) as a separate message so it's easy to copy-paste
 
 ## Output
 - Format: H.264 + AAC, 1080x1920, 30fps

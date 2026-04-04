@@ -166,7 +166,7 @@ def analyze_transcript_oci(
                     content=[oci.generative_ai_inference.models.TextContent(text=prompt)]
                 )
             ],
-            max_tokens=4096,
+            max_tokens=8192,
             temperature=0.7,
         ),
     )
