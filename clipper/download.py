@@ -28,7 +28,7 @@ def download_video(video_id: str, output_dir: str, cookies_file: str = "") -> st
     url = f"https://www.youtube.com/watch?v={video_id}"
     cmd = [
         YTDLP_BIN,
-        "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+        "-f", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
         "--merge-output-format", "mp4",
         "-o", output_path,
         "--no-playlist",
