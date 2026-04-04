@@ -1,6 +1,6 @@
 character: false
 hook:
-  duration: 1.2
+  duration: 0.6
   style: glitch
   text: YOUR MONEY LOST $2,400 TODAY
 scenes:

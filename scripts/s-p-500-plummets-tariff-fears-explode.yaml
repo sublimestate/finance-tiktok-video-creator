@@ -1,0 +1,80 @@
+character: false
+hook:
+  duration: 1.2
+  style: bold
+  text: S&P 500 IN FREEFALL AS TARIFFS LOOM!
+scenes:
+- duration: 2.5
+  narration: S&P 500 dropped over 1% today.
+  text_overlay:
+    content: S&P Drops 1%
+    position: center
+    style: title
+  visuals:
+    query: S&P 500 stock market drop
+    type: news_video
+- duration: 2.5
+  narration: Nasdaq tumbled more than 2% into correction.
+  text_overlay:
+    content: Nasdaq in Correction
+    position: bottom
+    style: lower_third
+  visuals:
+    query: Nasdaq index chart decline
+    type: news_image
+- duration: 2.5
+  narration: S&P 500 down nearly 9% from January high.
+  text_overlay:
+    content: 9% Drop from High
+    position: center
+    style: title
+  visuals:
+    query: S&P 500 historical chart drop
+    type: news_video
+- duration: 2.5
+  narration: Worst weekly losing streak in four years.
+  text_overlay:
+    content: Four-Year Streak Low
+    position: bottom
+    style: lower_third
+  visuals:
+    query: Stock market weekly performance chart
+    type: news_image
+- duration: 2.5
+  narration: Tariff fears are driving the sell-off.
+  text_overlay:
+    content: Tariff Fears Escalate
+    position: center
+    style: title
+  visuals:
+    query: Tariff announcements impact on markets
+    type: news_video
+- duration: 2.5
+  narration: Older investors pulling back on recession worries.
+  text_overlay:
+    content: Older Investors Retreat
+    position: bottom
+    style: lower_third
+  visuals:
+    query: Investors reacting to recession news
+    type: news_image
+- duration: 2.5
+  narration: Gen Z and millennials keep buying stocks.
+  text_overlay:
+    content: Millennials Buy On
+    position: center
+    style: title
+  visuals:
+    query: Young investors in stock market
+    type: news_video
+- duration: 2.5
+  narration: Follow for more finance updates!
+  text_overlay:
+    content: Follow for More
+    position: bottom
+    style: lower_third
+  visuals:
+    query: TikTok finance creator tips
+    type: news_image
+title: 'S&P 500 Plummets: Tariff Fears Explode!'
+voice: adam

@@ -1,21 +1,20 @@
 # Finance TikTok Video Creator
 
 ## Overview
-Two tools: (1) Create original TikTok videos from YAML scripts with TTS, overlays, and stock footage. (2) Extract viral clips from YouTube finance videos with AI analysis and karaoke captions.
+Three tools: (1) Create original TikTok videos from YAML scripts. (2) One-command headline-to-video pipeline. (3) Extract viral clips from YouTube finance videos with AI analysis.
 
 ## Tech Stack
-- **Python 3** — pipeline orchestration and CLI
+- **Python 3.8** — pipeline orchestration and CLI
 - **Remotion (Node.js/React)** — animated text overlays with transparency (PNG sequence → MOV)
-- **FFmpeg** — video compositing, Ken Burns effects, audio mixing, final encoding
-- **ElevenLabs** — TTS narration (free tier: 10K chars/month)
-- **Fish.audio** — TTS fallback if ElevenLabs fails (quota, rate limit, network error)
-- **Pexels API** — stock footage and images
-- **SerpAPI** — Google Image search for news/event images (filters stock photo sites)
-- **Oracle GenAI** — AI transcript analysis via Grok 3 Mini (Instance Principal auth)
-- **Vosk** — offline speech recognition for caption generation
-- **yt-dlp + Deno** — YouTube video download (Deno required for JS challenge solving)
-- **OCI Object Storage** — HD video upload/download (bucket: finance-videos)
-- **Lottie** — animated character via @remotion/lottie
+- **FFmpeg** — video compositing, audio mixing, clip rendering (ultrafast preset)
+- **Edge TTS** — primary TTS (free, unlimited, Microsoft neural voices, default: en-GB-RyanNeural)
+- **ElevenLabs / Fish.audio** — premium TTS options (when API keys are active)
+- **Pexels API** — stock footage and video clips
+- **SerpAPI** — Google Image search for news images (filters stock photo watermarks)
+- **Oracle GenAI** — AI analysis via Grok 3 Mini / Gemini (Instance Principal auth)
+- **Vosk** — offline speech recognition for captions (small model to avoid OOM)
+- **yt-dlp + Deno** — YouTube download (Deno solves JS challenges, inconsistent on cloud IPs)
+- **OCI Object Storage** — HD video upload/download (bucket: finance-videos, namespace: idtd7ksjim3e)
 
 ## Setup
 ```bash
@@ -23,7 +22,7 @@ Two tools: (1) Create original TikTok videos from YAML scripts with TTS, overlay
 # ffmpeg, deno (~/.deno/bin), opencv-python-headless, vosk
 
 # Python deps
-python3 -m pip install pyyaml requests python-slugify youtube-transcript-api vosk opencv-python-headless oci
+python3 -m pip install pyyaml requests python-slugify youtube-transcript-api vosk opencv-python-headless oci edge-tts
 
 # Remotion deps
 cd remotion && npm install && cd ..
@@ -33,89 +32,99 @@ cp config.yaml.example config.yaml  # then fill in API keys
 ```
 
 ## Config Keys (config.yaml)
-Required: `elevenlabs` (TTS), `pexels` (stock footage)
-Optional: `fish_audio` (TTS fallback), `serpapi_key` (news images), `google_api_key`/`google_cx` (Google images), `anthropic` (clip analysis)
-OCI GenAI uses Instance Principal auth — no key needed on this server
+Required: `pexels` (stock footage), `serpapi_key` (news images)
+Optional: `elevenlabs`, `fish_audio` (premium TTS), `anthropic` (clip analysis)
+Edge TTS needs no key. OCI GenAI uses Instance Principal auth — no key needed on this server.
+
+## Three CLIs
+
+### 1. quick_video.py — Headline to TikTok (fastest)
+```bash
+python3 quick_video.py "Oil prices crash 5% on Iran peace deal"
+```
+Auto-researches topic → AI writes script → fetches assets → TTS → renders. ~6 min.
+
+### 2. create_video.py — Script to TikTok
+```bash
+python3 create_video.py scripts/example.yaml
+python3 create_video.py scripts/example.yaml --skip-assets --skip-tts --skip-remotion
+```
+
+### 3. clip_video.py — YouTube to TikTok Clips
+```bash
+# If yt-dlp works directly:
+python3 clip_video.py "https://youtube.com/watch?v=VIDEO_ID" --ai oci --max-clips 5
+# If YouTube blocks (common on cloud IPs), upload from laptop first:
+./upload_video.sh "https://youtube.com/watch?v=VIDEO_ID"
+python3 clip_video.py VIDEO_ID --ai oci --skip-download --max-clips 5
+# Options: --no-captions --no-title --skip-face
+```
 
 ## Project Structure
 ```
-create_video.py          # CLI: create videos from YAML scripts
-clip_video.py            # CLI: extract clips from YouTube videos
-upload_video.sh          # Local script: download YT + upload to OCI
-config.yaml              # API keys and settings (not committed)
-pipeline/
-  parser.py              # YAML script → Scene dataclasses
-  tts.py                 # TTS generation (ElevenLabs + Fish.audio fallback)
-  assets.py              # Pexels/Pixabay/SerpAPI/DuckDuckGo asset fetching
-  remotion_bridge.py     # Python → Remotion CLI (PNG sequence with alpha)
-  composer.py            # FFmpeg final compositing
-clipper/
-  download.py            # YouTube download via yt-dlp + OCI Object Storage
-  transcript.py          # Transcript via yt-dlp subtitles + vosk fallback
-  analyze.py             # AI clip selection (OCI GenAI, Anthropic, Ollama)
-  facedetect.py          # OpenCV face detection for smart cropping
-  captions.py            # ASS karaoke subtitle generation
-  render.py              # FFmpeg vertical clip rendering
-  transcribe_clip.py     # Per-clip speech recognition via vosk
-remotion/src/
-  index.tsx              # Remotion root composition
-  Video.tsx              # Main overlay component
-  components/
-    AnimatedText.tsx      # Title, subtitle, lower_third, typewriter styles
-    HookText.tsx          # Hook animations: bold, glitch, zoom
-    LottieCharacter.tsx   # Animated Lottie character (commentary mode)
-    Captions.tsx          # Word-by-word animated captions
-    IconOverlay.tsx       # Emoji icon animations
-    SceneTransition.tsx   # Fade in/out transitions
+quick_video.py           # CLI: headline → video (one command)
+create_video.py          # CLI: YAML script → video
+clip_video.py            # CLI: YouTube → clips
+upload_video.sh          # Local: download YT + upload to OCI
+config.yaml              # API keys (not committed)
+pipeline/                # Video creator modules
+clipper/                 # YouTube clip generator modules
+remotion/src/            # Remotion overlay components
 scripts/                 # YAML video scripts
+data/videos/             # Downloaded YouTube videos (gitignored)
+data/models/             # Vosk speech models (gitignored)
 ```
 
-## Video Creator Usage
-```bash
-python3 create_video.py scripts/example.yaml
-python3 create_video.py scripts/example.yaml --skip-assets --skip-tts  # reuse cached
-python3 create_video.py scripts/example.yaml --skip-remotion           # reuse overlay
-```
-
-## Clip Generator Usage
-```bash
-# On your laptop: download HD + upload to OCI
-./upload_video.sh "https://youtube.com/watch?v=VIDEO_ID"
-# On server: generate clips
-python3 clip_video.py VIDEO_ID --ai oci --max-clips 5
-python3 clip_video.py VIDEO_ID --ai oci --no-captions --no-title --skip-face
-```
-
-## Pipeline Stages (Video Creator)
-1. **Parse** — YAML script → Scene list
-2. **Assets** — Fetch stock footage/images from Pexels/SerpAPI
-3. **TTS** — Generate narration via ElevenLabs (falls back to Fish.audio on failure)
-4. **Remotion** — Render text/icon overlays as PNG sequence → MOV with alpha
-5. **Compose** — FFmpeg layers background + overlay + audio → 1080x1920 MP4
-
-## Pipeline Stages (Clip Generator)
-1. **Download** — OCI Object Storage → yt-dlp fallback
-2. **Transcript** — yt-dlp subtitles → vosk speech recognition fallback
-3. **AI Analysis** — OCI GenAI (Grok 3 Mini) identifies 3-5 viral moments
-4. **Render** — FFmpeg: blurred background + centered frame + ASS karaoke captions
+## Video Format (Best Performing)
+- 8-10 scenes, 2-3 seconds each, ~25-30 seconds total
+- Mix of `news_video` (Pexels clips) and `news_image` (SerpAPI) per scene
+- No character (takes up screen space, looks automated)
+- Hook: 0.6s, word-by-word slam animation with flash + shake
+- Captions: word-by-word with yellow highlight (Remotion) or karaoke green (ASS)
+- Voice: en-GB-RyanNeural (Edge TTS, British, authoritative)
+- TikTok description: max 6 hashtags
 
 ## Script Format
-YAML with: `hook` (text, duration, style), `character` (bool), scenes with `narration`, `visuals` (type: stock_video/stock_image/news_image/news_video), `text_overlay`, `icon`.
+```yaml
+title: "Title"
+voice: "adam"
+character: false
+hook:
+  text: "HOOK IN CAPS"
+  duration: 0.6
+  style: glitch  # bold | glitch | zoom
+scenes:
+  - narration: "Short punchy sentence."
+    duration: 2.5
+    visuals:
+      type: news_video  # news_video | news_image | stock_video | stock_image | solid_color
+      query: "search query for visuals"
+    text_overlay:
+      content: "Key Point"
+      style: title  # title | subtitle | lower_third | typewriter
+      position: center  # center | top | bottom
+    icon: "fire"  # optional emoji icon
+```
 
 ## Environment Gotchas
-- Python 3.8 on this server — latest yt-dlp needs standalone binary (`./yt-dlp`) not pip
-- Deno required at `~/.deno/bin/deno` for yt-dlp YouTube JS challenge solving
-- YouTube blocks downloads/transcripts from cloud IPs — use cookies or OCI Object Storage upload workflow
-- Remotion WebM VP9 does NOT support alpha on this FFmpeg version — use PNG sequence → MOV instead
-- `zoompan` filter at 1080x1920 is extremely slow — pre-resize images first, with timeout fallback
-- Large vosk model (1.8GB) causes OOM with HD videos — use small model (40MB)
-- Stop Ollama (`sudo systemctl stop ollama`) when not in use to free ~5GB RAM
-- OCI Instance Principal auth works — dynamic group needs policies for generative-ai-family and object-storage
-- SerpAPI image search: filter out stock photo domains (shutterstock, getty, etc.) to avoid watermarks
-- Per-video tmp dirs (`tmp/<script-name>/`) prevent cross-contamination between renders
-- FFmpeg `-ss` MUST come BEFORE `-i` for ASS subtitle timing to work correctly
-- scene_padding (0.3s) must be added to Remotion overlay duration to prevent caption drift
+- Python 3.8 — latest yt-dlp/pytubefix won't install via pip. Use standalone `./yt-dlp` binary
+- Deno at `~/.deno/bin/deno` — required for yt-dlp JS challenge solving
+- YouTube download inconsistent from cloud IPs — some videos work, others blocked. Use OCI upload workflow as fallback
+- OCI Object Storage upload script names files with full URL — server auto-renames to video ID
+- Remotion WebM VP9 has no alpha on this FFmpeg — use PNG sequence → MOV
+- `zoompan` filter at 1080x1920 extremely slow — use blurred bg + centered image instead
+- Small vosk model only (40MB) — large model (1.8GB) causes OOM with HD videos
+- Edge TTS is the reliable free fallback — ElevenLabs/Fish.audio credits expire
+- TTS fallback chain: ElevenLabs → Fish.audio → Edge TTS (always works)
+- FFmpeg `-ss` MUST come BEFORE `-i` for ASS subtitle timing
+- scene_padding (0.3s) must match between composer and remotion_bridge
+- Clip rendering uses ThreadPoolExecutor (3 parallel) — not ProcessPoolExecutor (pickle error)
+- OCI free trial limits instance creation — may need PAYG upgrade for more compute
+- No GPU shapes available in us-ashburn-1 — would need service limit increase or different region
+- Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
+- Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
 ## Output
 - Format: H.264 + AAC, 1080x1920, 30fps
-- Location: `output/` directory (videos), `output/clips/` (clips)
+- Videos: `output/` directory
+- Clips: `output/clips/` directory

@@ -95,7 +95,7 @@ voice: "adam"
 character: false
 hook:
   text: "HOOK IN CAPS - MAX 6 WORDS"
-  duration: 1.2
+  duration: 0.6
   style: glitch
 scenes:
   - narration: "short punchy sentence"
