@@ -133,23 +133,31 @@ def analyze_transcript_oci(
     if not HAS_OCI:
         raise RuntimeError("oci package not installed. Run: pip install oci")
 
-    signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    # Try Instance Principal auth (OCI compute), fall back to API Key auth (local)
+    try:
+        signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+        config = {}
+        if not compartment_id:
+            import urllib.request
+            req = urllib.request.Request(
+                "http://169.254.169.254/opc/v2/instance/",
+                headers={"Authorization": "Bearer Oracle"})
+            resp = urllib.request.urlopen(req, timeout=5)
+            metadata = json.loads(resp.read())
+            compartment_id = metadata.get("compartmentId", "")
+    except Exception:
+        config = oci.config.from_file()
+        signer = None
+        if not compartment_id:
+            compartment_id = config.get("tenancy", "")
 
-    if not compartment_id:
-        # Try to get from instance metadata
-        import urllib.request
-        req = urllib.request.Request(
-            "http://169.254.169.254/opc/v2/instance/",
-            headers={"Authorization": "Bearer Oracle"})
-        resp = urllib.request.urlopen(req, timeout=5)
-        metadata = json.loads(resp.read())
-        compartment_id = metadata.get("compartmentId", "")
-
-    client = oci.generative_ai_inference.GenerativeAiInferenceClient(
-        config={},
-        signer=signer,
-        service_endpoint=f"https://inference.generativeai.{region}.oci.oraclecloud.com",
-    )
+    client_kwargs = {
+        "config": config,
+        "service_endpoint": f"https://inference.generativeai.{region}.oci.oraclecloud.com",
+    }
+    if signer:
+        client_kwargs["signer"] = signer
+    client = oci.generative_ai_inference.GenerativeAiInferenceClient(**client_kwargs)
 
     prompt = SYSTEM_PROMPT + "\n\n" + build_user_prompt(video_title, transcript)
 
