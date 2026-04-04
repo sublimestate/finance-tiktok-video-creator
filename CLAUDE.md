@@ -16,7 +16,7 @@ Three tools: (1) Create original TikTok videos from YAML scripts. (2) One-comman
 - **yt-dlp + Deno** — YouTube download (Deno solves JS challenges, inconsistent on cloud IPs)
 - **OCI Object Storage** — HD video upload/download (bucket: finance-videos, namespace: idtd7ksjim3e)
 
-## Setup
+## Setup (Oracle Server — Linux)
 ```bash
 # System deps (already installed on server)
 # ffmpeg, deno (~/.deno/bin), opencv-python-headless, vosk
@@ -25,6 +25,13 @@ Three tools: (1) Create original TikTok videos from YAML scripts. (2) One-comman
 python3 -m pip install pyyaml requests python-slugify youtube-transcript-api vosk opencv-python-headless oci edge-tts
 
 # Remotion deps
+cd remotion && npm install && cd ..
+```
+
+## Setup (macOS — M-series Mac)
+```bash
+brew install ffmpeg deno node
+python3 -m pip install pyyaml requests python-slugify youtube-transcript-api vosk opencv-python-headless oci edge-tts
 cd remotion && npm install && cd ..
 
 # Config
@@ -106,8 +113,14 @@ scenes:
     icon: "fire"  # optional emoji icon
 ```
 
+## Platform-Aware Encoding
+- `platform_utils.py` auto-detects macOS vs Linux and selects the best FFmpeg encoder
+- macOS: uses `h264_videotoolbox` (hardware-accelerated), more parallel render threads
+- Linux: uses `libx264` (software), 3 parallel render threads
+- All FFmpeg encode args go through `get_video_encode_args()` / `get_video_encode_args_simple()`
+
 ## Environment Gotchas
-- Python 3.8 — latest yt-dlp/pytubefix won't install via pip. Use standalone `./yt-dlp` binary
+- Python 3.8 on server — latest yt-dlp/pytubefix won't install via pip. Use standalone `./yt-dlp` binary
 - Deno at `~/.deno/bin/deno` — required for yt-dlp JS challenge solving
 - YouTube download inconsistent from cloud IPs — some videos work, others blocked. Use OCI upload workflow as fallback
 - OCI Object Storage upload script names files with full URL — server auto-renames to video ID
@@ -123,6 +136,10 @@ scenes:
 - No GPU shapes available in us-ashburn-1 — would need service limit increase or different region
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
+
+## Telegram
+- When receiving a Telegram message, always acknowledge receipt with a quick reply before starting any work
+- When sending rendered clips via Telegram, always include a TikTok description (hook line + max 6 hashtags) with each clip
 
 ## Output
 - Format: H.264 + AAC, 1080x1920, 30fps

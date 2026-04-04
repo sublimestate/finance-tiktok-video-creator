@@ -4,6 +4,8 @@ import os
 import subprocess
 from typing import Dict, Optional
 
+from platform_utils import get_video_encode_args
+
 
 def render_clip(
     input_path: str,
@@ -36,20 +38,51 @@ def render_clip(
 
     # Step 2: Hook title banner (first 5 seconds)
     if clip_title:
-        escaped = (clip_title
-                   .replace("\\", "\\\\")
-                   .replace("'", "'\\''")
-                   .replace(":", "\\:")
-                   .replace(";", "\\;")
-                   .replace("%", "%%"))
+        def _escape_drawtext(t):
+            return (t.replace("\\", "\\\\")
+                     .replace("'", "'\\''")
+                     .replace(":", "\\:")
+                     .replace(";", "\\;")
+                     .replace("%", "%%"))
+
+        # Wrap long titles into two lines (~25 chars per line)
+        max_chars = 25
+        if len(clip_title) > max_chars:
+            words = clip_title.split()
+            line1, line2 = [], []
+            for w in words:
+                if len(" ".join(line1 + [w])) <= max_chars:
+                    line1.append(w)
+                else:
+                    line2.append(w)
+            lines = [" ".join(line1), " ".join(line2)]
+        else:
+            lines = [clip_title]
+
+        num_lines = len(lines)
+        banner_h = 120 + (num_lines - 1) * 70
+        banner_y = 300
+
+        # Dark banner across full width with padding
         filters.append(
-            f"[{last_label}]drawbox=x=(iw-800)/2:y=60:w=800:h=120:"
-            f"color=white@0.85:t=fill:enable='between(t,0,5)'[out1a]"
+            f"[{last_label}]drawbox=x=0:y={banner_y}:w=iw:h={banner_h}:"
+            f"color=black@0.7:t=fill:enable='between(t,0,5)'[out1a]"
         )
-        filters.append(
-            f"[out1a]drawtext=text='{escaped}':fontsize=42:fontcolor=black:"
-            f"x=(w-text_w)/2:y=90:enable='between(t,0,5)'[out1]"
-        )
+
+        # Draw each line of text centered
+        prev_label = "out1a"
+        for i, line in enumerate(lines):
+            escaped = _escape_drawtext(line)
+            text_y = banner_y + 25 + i * 70
+            next_label = f"out1{'b' if i == 0 and num_lines > 1 else ''}"
+            if i == len(lines) - 1:
+                next_label = "out1"
+            filters.append(
+                f"[{prev_label}]drawtext=text='{escaped}':"
+                f"fontsize=52:fontcolor=white:borderw=3:bordercolor=black:"
+                f"font=Arial:x=(w-text_w)/2:y={text_y}:enable='between(t,0,5)'[{next_label}]"
+            )
+            prev_label = next_label
         last_label = "out1"
 
     # Step 3: Karaoke captions (ASS subtitles)
@@ -71,9 +104,7 @@ def render_clip(
         "-filter_complex", filter_complex,
         "-map", "[out]",
         "-map", "0:a?",
-        "-c:v", "libx264",
-        "-crf", "23",
-        "-preset", "ultrafast",
+    ] + get_video_encode_args(crf=23, preset="ultrafast") + [
         "-c:a", "aac",
         "-b:a", "128k",
         "-movflags", "+faststart",

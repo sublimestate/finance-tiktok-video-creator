@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from pipeline.parser import Scene
+from platform_utils import get_video_encode_args, get_video_encode_args_simple
 
 
 def _create_color_clip(color: str, duration: float, output_path: str,
@@ -14,7 +15,7 @@ def _create_color_clip(color: str, duration: float, output_path: str,
     subprocess.run(
         ["ffmpeg", "-y", "-f", "lavfi",
          "-i", f"color=c={color}:s={width}x{height}:d={duration}:r={fps}",
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", output_path],
+         *get_video_encode_args_simple(), output_path],
         capture_output=True,
     )
 
@@ -52,7 +53,7 @@ def _create_ken_burns(image_path: str, duration: float, output_path: str,
          "-map", "[out]",
          "-t", str(duration),
          "-r", str(fps),
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", output_path],
+         *get_video_encode_args_simple(), output_path],
         capture_output=True,
         timeout=180,
     )
@@ -74,7 +75,7 @@ def _create_ken_burns(image_path: str, duration: float, output_path: str,
              "-map", "[out]",
              "-t", str(duration),
              "-r", str(fps),
-             "-c:v", "libx264", "-pix_fmt", "yuv420p", output_path],
+             *get_video_encode_args_simple(), output_path],
             capture_output=True,
             timeout=120,
         )
@@ -103,7 +104,7 @@ def build_background(scenes: List[Scene], tmp_dir: str,
                      f"crop={width}:{height},setsar=1"
                  ),
                  "-t", str(hook_duration),
-                 "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                 *get_video_encode_args_simple(),
                  "-r", str(fps), "-an", hook_seg],
                 capture_output=True,
             )
@@ -128,7 +129,7 @@ def build_background(scenes: List[Scene], tmp_dir: str,
                      f"crop={width}:{height},setsar=1"
                  ),
                  "-t", str(duration),
-                 "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                 *get_video_encode_args_simple(),
                  "-r", str(fps), "-an", seg_path],
                 capture_output=True,
             )
@@ -266,7 +267,7 @@ def compose_final(
     cmd += [
         "-map", map_video,
         "-map", audio_map,
-        "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+    ] + get_video_encode_args(crf=crf, preset="medium") + [
         "-c:a", "aac", "-b:a", "192k",
         "-r", str(fps),
         "-s", f"{width}x{height}",

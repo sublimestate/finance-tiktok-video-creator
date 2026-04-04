@@ -163,14 +163,16 @@ def main():
 
     # Render all clips in parallel
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    print(f"\n  Rendering {len(clip_jobs)} clips in parallel...")
+    from platform_utils import get_thread_count
+    max_threads = min(get_thread_count(), len(clip_jobs))
+    print(f"\n  Rendering {len(clip_jobs)} clips in parallel ({max_threads} threads)...")
 
     def _render_one(job):
         render_clip(**job)
         return job["output_path"]
 
     output_paths = []
-    with ThreadPoolExecutor(max_workers=min(3, len(clip_jobs))) as executor:
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
         futures = {executor.submit(_render_one, job): i for i, job in enumerate(clip_jobs)}
         for future in as_completed(futures):
             idx = futures[future]
