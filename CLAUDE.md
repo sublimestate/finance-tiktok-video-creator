@@ -26,6 +26,9 @@ python3 -m pip install pyyaml requests python-slugify youtube-transcript-api vos
 
 # Remotion deps
 cd remotion && npm install && cd ..
+
+# Config
+cp config.yaml.example config.yaml  # then fill in API keys
 ```
 
 ## Setup (macOS — M-series Mac)
@@ -73,6 +76,7 @@ quick_video.py           # CLI: headline → video (one command)
 create_video.py          # CLI: YAML script → video
 clip_video.py            # CLI: YouTube → clips
 upload_video.sh          # Local: download YT + upload to OCI
+platform_utils.py        # Platform detection + FFmpeg encoding args
 config.yaml              # API keys (not committed)
 pipeline/                # Video creator modules
 clipper/                 # YouTube clip generator modules
@@ -87,7 +91,7 @@ data/models/             # Vosk speech models (gitignored)
 - Mix of `news_video` (Pexels clips) and `news_image` (SerpAPI) per scene
 - No character (takes up screen space, looks automated)
 - Hook: 0.6s, word-by-word slam animation with flash + shake
-- Captions: word-by-word with yellow highlight (Remotion) or karaoke green (ASS)
+- Captions: word-by-word with yellow highlight (Remotion) or white-to-green karaoke (ASS)
 - Voice: en-GB-RyanNeural (Edge TTS, British, authoritative)
 - TikTok description: max 6 hashtags
 
@@ -131,7 +135,7 @@ scenes:
 - TTS fallback chain: ElevenLabs → Fish.audio → Edge TTS (always works)
 - FFmpeg `-ss` MUST come BEFORE `-i` for ASS subtitle timing
 - scene_padding (0.3s) must match between composer and remotion_bridge
-- Clip rendering uses ThreadPoolExecutor (3 parallel) — not ProcessPoolExecutor (pickle error)
+- Clip rendering uses ThreadPoolExecutor (dynamic thread count via platform_utils) — not ProcessPoolExecutor (pickle error)
 - OCI free trial limits instance creation — may need PAYG upgrade for more compute
 - No GPU shapes available in us-ashburn-1 — would need service limit increase or different region
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
