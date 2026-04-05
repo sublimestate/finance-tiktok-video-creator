@@ -144,6 +144,7 @@ scenes:
 ## Telegram
 - When receiving a Telegram message, always acknowledge receipt with a quick reply before starting any work
 - When sending rendered clips via Telegram, send each clip's TikTok description (hook line + max 6 hashtags) as a separate message so it's easy to copy-paste
+- Run clip generation (download, transcribe, render) in the background so the user can still interact during processing
 
 ## Output
 - Format: H.264 + AAC, 1080x1920, 30fps

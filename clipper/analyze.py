@@ -25,11 +25,11 @@ Selection criteria (prioritize segments with these qualities):
 - **Story moments**: Mini-narratives with a clear beginning, middle, and punchline
 
 Rules:
-- Each clip MUST be between 30 and 60 seconds
+- Each clip should be 20-90 seconds — choose the optimal length for each segment (shorter for punchy takes, longer for stories)
 - Clips should start at a natural beginning of a thought (not mid-sentence)
 - Clips should end at a natural conclusion or punchline
 - Avoid segments that require too much prior context to understand
-- Identify 3-5 clips per video
+- Clips MUST NOT overlap — each clip should be from a completely different part of the video with at least 30 seconds gap between them
 - Score each clip 1-100 based on estimated viral potential"""
 
 
@@ -47,7 +47,7 @@ You MUST respond with valid JSON matching this exact format:
 Rules for the JSON:
 - "title": catchy clickbait-style title, max 80 chars
 - "startTime": start time in seconds (number, from the timestamps above)
-- "endTime": end time in seconds (number), must be 30-60 seconds after startTime
+- "endTime": end time in seconds (number), 20-90 seconds after startTime — choose optimal length per clip
 - "reason": 1-2 sentences on why this segment would go viral
 - "score": viral potential 1-100
 - "description": a TikTok post description — start with a compelling hook line that makes people stop scrolling (use a quote, bold claim, or shocking stat from the clip), then add exactly 6 relevant hashtags. Max 150 chars total. Example: '"The rich aren\'t paying their fair share" — here\'s the proof 🔥 #taxes #finance #politics #money #wealth #taxtherich'
@@ -178,6 +178,99 @@ def analyze_transcript_oci(
     return _parse_clips_response(text)
 
 
+REWRITE_PROMPT = """You are a TikTok content expert. Rewrite the hook title and description for this clip to be more engaging and clickbaity.
+
+Clip transcript:
+{transcript}
+
+Current title: {title}
+Current description: {description}
+
+Return ONLY valid JSON:
+{{"title": "new catchy title max 80 chars", "description": "new TikTok description with hook + 6 hashtags, max 150 chars"}}"""
+
+
+def rewrite_clip_titles_oci(
+    clips: List[Dict],
+    segments: List[Dict],
+    compartment_id: str = "",
+    region: str = "us-ashburn-1",
+) -> List[Dict]:
+    """Second pass: rewrite clip titles using the actual transcript content."""
+    if not HAS_OCI:
+        return clips
+
+    try:
+        signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+
+        if not compartment_id:
+            import urllib.request
+            req = urllib.request.Request(
+                "http://169.254.169.254/opc/v2/instance/",
+                headers={"Authorization": "Bearer Oracle"})
+            resp = urllib.request.urlopen(req, timeout=5)
+            metadata = json.loads(resp.read())
+            compartment_id = metadata.get("compartmentId", "")
+
+        client = oci.generative_ai_inference.GenerativeAiInferenceClient(
+            config={},
+            signer=signer,
+            service_endpoint=f"https://inference.generativeai.{region}.oci.oraclecloud.com",
+        )
+
+        for clip in clips:
+            # Get transcript text for this clip
+            clip_text = " ".join(
+                seg["text"] for seg in segments
+                if seg["start"] >= clip["startTime"] - 0.5 and seg["start"] < clip["endTime"]
+            )
+            if not clip_text:
+                continue
+
+            prompt = REWRITE_PROMPT.format(
+                transcript=clip_text[:2000],
+                title=clip.get("title", ""),
+                description=clip.get("description", ""),
+            )
+
+            chat_detail = oci.generative_ai_inference.models.ChatDetails(
+                compartment_id=compartment_id,
+                serving_mode=oci.generative_ai_inference.models.OnDemandServingMode(
+                    model_id="xai.grok-3-mini-fast"
+                ),
+                chat_request=oci.generative_ai_inference.models.GenericChatRequest(
+                    api_format="GENERIC",
+                    messages=[
+                        oci.generative_ai_inference.models.UserMessage(
+                            content=[oci.generative_ai_inference.models.TextContent(text=prompt)]
+                        )
+                    ],
+                    max_tokens=512,
+                    temperature=0.8,
+                ),
+            )
+
+            response = client.chat(chat_detail)
+            text = response.data.chat_response.choices[0].message.content[0].text
+
+            try:
+                import re
+                cleaned = re.sub(r'^```(?:json)?\s*', '', text.strip())
+                cleaned = re.sub(r'\s*```$', '', cleaned).strip()
+                parsed = json.loads(cleaned)
+                if parsed.get("title"):
+                    clip["title"] = parsed["title"][:80]
+                if parsed.get("description"):
+                    clip["description"] = parsed["description"][:200]
+            except (json.JSONDecodeError, KeyError):
+                pass  # Keep original title/description
+
+    except Exception:
+        pass  # If rewrite fails, keep originals
+
+    return clips
+
+
 def _parse_clips_response(text: str) -> List[Dict]:
     """Robustly parse clip JSON from AI response, handling markdown and malformed JSON."""
     import re
@@ -230,14 +323,29 @@ def _parse_clips_response(text: str) -> List[Dict]:
 
 
 def _validate_clips(clips: List[Dict]) -> List[Dict]:
-    """Validate and clean clip data."""
+    """Validate, deduplicate overlapping clips, and clean clip data."""
     valid = []
     for clip in clips:
         if not all(k in clip for k in ("title", "startTime", "endTime", "score")):
             continue
         duration = clip["endTime"] - clip["startTime"]
-        if duration < 15 or duration > 90:
+        if duration < 15 or duration > 120:
             continue
         clip["score"] = max(1, min(100, int(clip["score"])))
         valid.append(clip)
-    return sorted(valid, key=lambda c: c["score"], reverse=True)
+
+    # Sort by score, then remove overlapping clips (keep higher-scored ones)
+    valid = sorted(valid, key=lambda c: c["score"], reverse=True)
+    deduped = []
+    for clip in valid:
+        overlaps = False
+        for kept in deduped:
+            # Check if clips overlap (within 15s of each other's range)
+            if (clip["startTime"] < kept["endTime"] + 15 and
+                    clip["endTime"] > kept["startTime"] - 15):
+                overlaps = True
+                break
+        if not overlaps:
+            deduped.append(clip)
+
+    return deduped

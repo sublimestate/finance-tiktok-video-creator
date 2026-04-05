@@ -11,11 +11,11 @@ from pathlib import Path
 
 from clipper.download import download_video, download_from_oci
 from clipper.transcript import get_transcript, format_transcript_for_ai
-from clipper.analyze import analyze_transcript_ollama, analyze_transcript_anthropic, analyze_transcript_oci
+from clipper.analyze import analyze_transcript_ollama, analyze_transcript_anthropic, analyze_transcript_oci, rewrite_clip_titles_oci
 from clipper.facedetect import detect_face, detect_face_in_clip
 from clipper.captions import generate_captions_file
 from clipper.transcribe_clip import transcribe_clip_words
-from clipper.render import render_clip
+from clipper.render import render_clip, detect_silence_boundaries
 
 
 def extract_video_id(url_or_id: str) -> str:
@@ -85,7 +85,26 @@ def main():
     # --- Stage 2: Transcript ---
     print("=" * 50)
     print("STAGE 2: Extracting transcript...")
-    segments = get_transcript(video_id, cookies_file=cookies_file)
+    try:
+        segments = get_transcript(video_id, cookies_file=cookies_file)
+    except RuntimeError:
+        # No YouTube transcript — fall back to Vosk transcription
+        print("  No online transcript, transcribing with Vosk...")
+        import json
+        from clipper.transcribe_clip import transcribe_clip
+        import subprocess as _sp
+        _probe = _sp.run(
+            ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+             "-of", "csv=p=0", video_path],
+            capture_output=True, text=True,
+        )
+        _duration = float(_probe.stdout.strip())
+        segments = transcribe_clip(video_path, 0, _duration)
+        # Cache for reuse
+        transcript_cache = str(Path(data_dir) / "videos" / f"{video_id}_transcript.json")
+        with open(transcript_cache, "w") as f:
+            json.dump(segments, f)
+        print(f"  Vosk: {len(segments)} segments (saved to cache)")
     transcript = format_transcript_for_ai(segments)
     print(f"  → {len(segments)} segments, {len(transcript)} characters")
 
@@ -151,6 +170,13 @@ def main():
         if clip.get("description"):
             print(f"       📝 {clip['description']}")
 
+    # Two-pass: rewrite titles using actual clip transcript content
+    if args.ai == "oci":
+        print("\n  Rewriting titles with two-pass AI...")
+        clips = rewrite_clip_titles_oci(clips, segments)
+        for i, clip in enumerate(clips):
+            print(f"    {i+1}. {clip['title']}")
+
     is_draft = args.quality == "draft"
     if is_draft:
         print("\n  ⚡ Draft mode: skipping face detection and Vosk word-level timing")
@@ -168,6 +194,16 @@ def main():
         print(f"\n  Preparing clip {i+1}/{len(clips)}: {clip['title']}")
         print(f"    Time: {clip['startTime']:.0f}s - {clip['endTime']:.0f}s "
               f"({clip['endTime'] - clip['startTime']:.0f}s)")
+
+        # Auto-trim leading/trailing silence
+        trimmed_start, trimmed_end = detect_silence_boundaries(
+            video_path, clip["startTime"], clip["endTime"]
+        )
+        if trimmed_start != clip["startTime"] or trimmed_end != clip["endTime"]:
+            print(f"    Auto-trimmed: {trimmed_start:.1f}s - {trimmed_end:.1f}s "
+                  f"({trimmed_end - trimmed_start:.1f}s)")
+            clip["startTime"] = trimmed_start
+            clip["endTime"] = trimmed_end
 
         # Per-clip face detection (skip in draft mode)
         if args.skip_face or is_draft:
