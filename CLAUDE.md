@@ -1,7 +1,7 @@
 # Finance TikTok Video Creator
 
 ## Overview
-Three tools: (1) Create original TikTok videos from YAML scripts. (2) One-command headline-to-video pipeline. (3) Extract viral clips from YouTube finance videos with AI analysis.
+Four tools: (1) Create original TikTok videos from YAML scripts. (2) One-command headline-to-video pipeline. (3) Extract viral clips from YouTube finance videos with AI analysis. (4) Batch search Rumble for trending topics and auto-generate clips.
 
 ## Tech Stack
 - **Python 3.8** — pipeline orchestration and CLI
@@ -10,10 +10,10 @@ Three tools: (1) Create original TikTok videos from YAML scripts. (2) One-comman
 - **Edge TTS** — primary TTS (free, unlimited, Microsoft neural voices, default: en-GB-RyanNeural)
 - **ElevenLabs / Fish.audio** — premium TTS options (when API keys are active)
 - **Pexels API** — stock footage and video clips
-- **SerpAPI** — Google Image search for news images (filters stock photo watermarks)
-- **Oracle GenAI** — AI analysis via Grok 3 Mini / Gemini (Instance Principal auth)
-- **Vosk** — offline speech recognition for captions (small model to avoid OOM)
-- **yt-dlp + Deno** — YouTube download (Deno solves JS challenges, inconsistent on cloud IPs)
+- **SerpAPI** — Google Image search for news images + Rumble video search
+- **Oracle GenAI** — AI analysis via Gemini 2.5 Flash (full transcript) + Grok 3 Mini (fallback), Instance Principal auth
+- **Vosk** — dual model: small (fast transcription), large (accurate per-word caption timing)
+- **yt-dlp + Deno** — YouTube/Rumble download (Deno solves JS challenges, --impersonate chrome for Rumble)
 - **OCI Object Storage** — HD video upload/download (bucket: finance-videos, namespace: idtd7ksjim3e)
 
 ## Setup (Oracle Server — Linux)
@@ -42,11 +42,11 @@ cp config.yaml.example config.yaml  # then fill in API keys
 ```
 
 ## Config Keys (config.yaml)
-Required: `pexels` (stock footage), `serpapi_key` (news images)
+Required: `pexels` (stock footage), `serpapi_key` (news images + Rumble search)
 Optional: `elevenlabs`, `fish_audio` (premium TTS), `anthropic` (clip analysis)
 Edge TTS needs no key. OCI GenAI uses Instance Principal auth — no key needed on this server.
 
-## Three CLIs
+## Five CLIs
 
 ### 1. quick_video.py — Headline to TikTok (fastest)
 ```bash
@@ -60,31 +60,68 @@ python3 create_video.py scripts/example.yaml
 python3 create_video.py scripts/example.yaml --skip-assets --skip-tts --skip-remotion
 ```
 
-### 3. clip_video.py — YouTube to TikTok Clips
+### 3. clip_video.py — YouTube/Rumble to TikTok Clips
 ```bash
 # If yt-dlp works directly:
 python3 clip_video.py "https://youtube.com/watch?v=VIDEO_ID" --ai oci --max-clips 5
 # If YouTube blocks (common on cloud IPs), upload from laptop first:
 ./upload_video.sh "https://youtube.com/watch?v=VIDEO_ID"
 python3 clip_video.py VIDEO_ID --ai oci --skip-download --max-clips 5
-# Options: --no-captions --no-title --skip-face
+# Quality presets:
+python3 clip_video.py VIDEO_ID --ai oci --skip-download --quality draft   # fast preview
+python3 clip_video.py VIDEO_ID --ai oci --skip-download --quality final   # ready to post
+# Options: --no-captions --no-title --skip-face --quality draft|final
 ```
+
+### 4. rumble_search.py — Rumble Topic Search (single topic)
+```bash
+python3 rumble_search.py "stock market crash" --max-videos 2 --max-clips 5 --quality final
+```
+Note: Rumble content quality varies — best used as a supplement to curated YouTube uploads.
+
+### 5. batch_search.py — Parallel Multi-Topic Search
+```bash
+python3 batch_search.py "tariffs" "mortgage rates" "AI jobs" \
+  --clips-per-video 2 --videos-per-topic 1 --quality draft --cleanup
+```
+Parallel downloads/transcription, auto-cleanup after clip extraction.
 
 ## Project Structure
 ```
 quick_video.py           # CLI: headline → video (one command)
 create_video.py          # CLI: YAML script → video
-clip_video.py            # CLI: YouTube → clips
+clip_video.py            # CLI: YouTube/Rumble → clips
+rumble_search.py         # CLI: Rumble topic search → clips
+batch_search.py          # CLI: parallel multi-topic batch search
 upload_video.sh          # Local: download YT + upload to OCI
 platform_utils.py        # Platform detection + FFmpeg encoding args
 config.yaml              # API keys (not committed)
 pipeline/                # Video creator modules
-clipper/                 # YouTube clip generator modules
+clipper/                 # Clip generator modules
+  analyze.py             #   AI transcript analysis + two-pass title rewriting
+  captions.py            #   ASS subtitle generation (karaoke + word-level timing)
+  render.py              #   FFmpeg clip rendering + auto-trim silence
+  transcribe_clip.py     #   Vosk dual-model transcription
+  transcript.py          #   YouTube transcript fetching
+  facedetect.py          #   Face detection for smart cropping
+  download.py            #   OCI + yt-dlp download
 remotion/src/            # Remotion overlay components
 scripts/                 # YAML video scripts
-data/videos/             # Downloaded YouTube videos (gitignored)
+data/videos/             # Downloaded videos (gitignored)
 data/models/             # Vosk speech models (gitignored)
 ```
+
+## Clip Generation Features
+- **Karaoke captions**: white text with green highlight, word-by-word timing via Vosk large model, border pulse animation
+- **Hook title**: full-width dark banner with wrapped text, displayed first 5 seconds
+- **Two-pass AI titles**: first pass finds clips, second pass rewrites titles using actual clip transcript
+- **AI-generated TikTok descriptions**: hook line + 6 hashtags, generated during analysis
+- **Auto-trim silence**: detects and removes leading/trailing dead air
+- **Clip overlap detection**: deduplicates overlapping time ranges
+- **Flexible duration**: AI picks 20-90s per clip based on content
+- **Quality presets**: draft (fast, skip face/vosk, lower bitrate) vs final (full quality)
+- **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
+- **Vosk fallback**: auto-transcribes when no YouTube transcript available
 
 ## Video Format (Best Performing)
 - 8-10 scenes, 2-3 seconds each, ~25-30 seconds total
@@ -119,15 +156,16 @@ scenes:
 
 ## Platform-Aware Encoding
 - `platform_utils.py` auto-detects macOS vs Linux and selects the best FFmpeg encoder
-- macOS: uses `h264_videotoolbox` (hardware-accelerated), more parallel render threads
-- Linux: uses `libx264` (software), 3 parallel render threads
+- macOS: uses `h264_videotoolbox` (hardware-accelerated), up to 6 parallel render threads
+- Linux: uses `libx264` (software), dynamic thread count via `get_thread_count()`
 - All FFmpeg encode args go through `get_video_encode_args()` / `get_video_encode_args_simple()`
 
 ## Environment Gotchas
 - Python 3.8 on server — latest yt-dlp/pytubefix won't install via pip. Use standalone `./yt-dlp` binary
 - Deno at `~/.deno/bin/deno` — required for yt-dlp JS challenge solving
-- YouTube download inconsistent from cloud IPs — some videos work, others blocked. Use OCI upload workflow as fallback
-- OCI Object Storage upload script names files with full URL — server auto-renames to video ID
+- YouTube download inconsistent from cloud IPs — use OCI upload workflow as fallback
+- Rumble download works with `--impersonate chrome` flag
+- OCI Object Storage: bucket `finance-videos`, namespace `idtd7ksjim3e`, region `us-ashburn-1`
 - Remotion WebM VP9 has no alpha on this FFmpeg — use PNG sequence → MOV
 - `zoompan` filter at 1080x1920 extremely slow — use blurred bg + centered image instead
 - Dual Vosk models: small (40MB) for fast full-video transcription, large (1.8GB) for accurate per-clip word timing
@@ -136,8 +174,7 @@ scenes:
 - FFmpeg `-ss` MUST come BEFORE `-i` for ASS subtitle timing
 - scene_padding (0.3s) must match between composer and remotion_bridge
 - Clip rendering uses ThreadPoolExecutor (dynamic thread count via platform_utils) — not ProcessPoolExecutor (pickle error)
-- OCI free trial limits instance creation — may need PAYG upgrade for more compute
-- No GPU shapes available in us-ashburn-1 — would need service limit increase or different region
+- Server: 8 vCPUs (4 cores × 2 threads), 32GB RAM, 200GB storage (AMD EPYC)
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
@@ -150,3 +187,4 @@ scenes:
 - Format: H.264 + AAC, 1080x1920, 30fps
 - Videos: `output/` directory
 - Clips: `output/clips/` directory
+- Descriptions: `output/clips/{video_id}_descriptions.json`
