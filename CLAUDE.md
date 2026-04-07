@@ -115,7 +115,7 @@ data/models/             # Vosk speech models (gitignored)
 - **Karaoke captions**: white text with green highlight, word-by-word timing via Vosk large model, border pulse animation
 - **Hook title**: full-width dark banner with wrapped text, displayed first 5 seconds
 - **Two-pass AI titles**: first pass finds clips, second pass rewrites titles using actual clip transcript
-- **AI-generated TikTok descriptions**: hook line + 6 hashtags, generated during analysis
+- **AI-generated TikTok descriptions**: hook line + 5 hashtags, generated during analysis
 - **Auto-trim silence**: detects and removes leading/trailing dead air
 - **Clip overlap detection**: deduplicates overlapping time ranges
 - **Flexible duration**: AI picks 20-90s per clip based on content
@@ -130,7 +130,7 @@ data/models/             # Vosk speech models (gitignored)
 - Hook: 0.6s, word-by-word slam animation with flash + shake
 - Captions: word-by-word with yellow highlight (Remotion) or white-to-green karaoke (ASS)
 - Voice: en-GB-RyanNeural (Edge TTS, British, authoritative)
-- TikTok description: max 6 hashtags
+- TikTok description: max 5 hashtags
 
 ## Script Format
 ```yaml
@@ -180,7 +180,7 @@ scenes:
 
 ## Telegram
 - When receiving a Telegram message, always acknowledge receipt with a quick reply before starting any work
-- When sending rendered clips via Telegram, send each clip's TikTok description (hook line + max 6 hashtags) as a separate message so it's easy to copy-paste
+- When sending rendered clips via Telegram, send each clip's TikTok description (hook line + max 5 hashtags) as a separate message so it's easy to copy-paste
 - Run clip generation (download, transcribe, render) in the background so the user can still interact during processing
 
 ## Output

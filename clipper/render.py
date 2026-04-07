@@ -136,8 +136,14 @@ def render_clip(
         filters.append(f"[{last_label}]ass='{escaped_path}'[out2]")
         last_label = "out2"
 
-    # Final null filter
-    filters.append(f"[{last_label}]null[out]")
+    # Fade in/out (0.3s each)
+    fade_in = 0.3
+    fade_out = 0.3
+    fade_out_start = max(0, duration - fade_out)
+    filters.append(
+        f"[{last_label}]fade=t=in:st=0:d={fade_in},"
+        f"fade=t=out:st={fade_out_start}:d={fade_out}[out]"
+    )
     filter_complex = ";".join(filters)
 
     # CRITICAL: -ss BEFORE -i resets PTS to 0 (ASS subtitles work correctly)
@@ -150,6 +156,7 @@ def render_clip(
         "-map", "[out]",
         "-map", "0:a?",
     ] + get_video_encode_args(crf=32 if draft else 23, preset="ultrafast") + [
+        "-af", f"afade=t=in:st=0:d={fade_in},afade=t=out:st={fade_out_start}:d={fade_out}",
         "-c:a", "aac",
         "-b:a", "64k" if draft else "128k",
         "-movflags", "+faststart",

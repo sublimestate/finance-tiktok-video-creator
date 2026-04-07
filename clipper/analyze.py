@@ -50,7 +50,7 @@ Rules for the JSON:
 - "endTime": end time in seconds (number), 20-90 seconds after startTime — choose optimal length per clip
 - "reason": 1-2 sentences on why this segment would go viral
 - "score": viral potential 1-100
-- "description": a TikTok post description — start with a compelling hook line that makes people stop scrolling (use a quote, bold claim, or shocking stat from the clip), then add exactly 6 relevant hashtags. Max 150 chars total. Example: '"The rich aren\'t paying their fair share" — here\'s the proof 🔥 #taxes #finance #politics #money #wealth #taxtherich'
+- "description": a TikTok post description — start with a compelling hook line that makes people stop scrolling (use a quote, bold claim, or shocking stat from the clip), then add exactly 5 relevant hashtags. Max 150 chars total. Example: '"The rich aren\'t paying their fair share" — here\'s the proof 🔥 #taxes #finance #politics #money #wealth'
 
 You MUST return exactly 5 clips. No more, no less. Each clip should be from a different part of the transcript. Respond with ONLY the JSON object, nothing else."""
 
@@ -187,7 +187,7 @@ Current title: {title}
 Current description: {description}
 
 Return ONLY valid JSON:
-{{"title": "new catchy title max 80 chars", "description": "new TikTok description with hook + 6 hashtags, max 150 chars"}}"""
+{{"title": "new catchy title max 80 chars", "description": "new TikTok description with hook + 5 hashtags, max 150 chars"}}"""
 
 
 def rewrite_clip_titles_oci(
