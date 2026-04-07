@@ -50,9 +50,10 @@ def get_video_encode_args_simple() -> List[str]:
 
 
 def get_thread_count() -> int:
-    """Return optimal parallel render thread count."""
+    """Return optimal parallel render thread count based on available CPUs."""
+    import os
+    cpus = os.cpu_count() or 4
     if is_mac():
-        import os
-        # M-series Macs have many cores, use more threads
-        return min(os.cpu_count() or 4, 6)
-    return 3
+        return min(cpus, 6)
+    # Linux: use most CPUs, leave 1-2 free for system
+    return max(3, cpus - 2)
