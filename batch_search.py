@@ -142,7 +142,7 @@ def main():
     parser.add_argument("topics", nargs="+", help="Topics to search for")
     parser.add_argument("--clips-per-video", type=int, default=2)
     parser.add_argument("--videos-per-topic", type=int, default=1)
-    parser.add_argument("--quality", default="draft", choices=["draft", "final"])
+    parser.add_argument("--quality", default="preview", choices=["draft", "preview", "final"])
     parser.add_argument("--min-duration", type=int, default=300,
                         help="Min video duration in seconds (default: 300 / 5 min)")
     parser.add_argument("--max-duration", type=int, default=1800,

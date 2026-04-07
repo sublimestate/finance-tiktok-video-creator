@@ -54,8 +54,8 @@ def main():
     parser.add_argument("--no-captions", action="store_true", help="Disable caption generation")
     parser.add_argument("--no-title", action="store_true", help="Disable hook title banner")
     parser.add_argument("--max-clips", type=int, default=5, help="Maximum clips to generate")
-    parser.add_argument("--quality", "-q", default="final", choices=["draft", "final"],
-                        help="Quality preset: draft (fast preview, no face/vosk) or final (full quality)")
+    parser.add_argument("--quality", "-q", default="final", choices=["draft", "preview", "final"],
+                        help="Quality preset: draft (low quality fast), preview (high quality, skip face/vosk), final (full quality)")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -178,8 +178,11 @@ def main():
             print(f"    {i+1}. {clip['title']}")
 
     is_draft = args.quality == "draft"
+    skip_heavy = args.quality in ("draft", "preview")
     if is_draft:
-        print("\n  ⚡ Draft mode: skipping face detection and Vosk word-level timing")
+        print("\n  ⚡ Draft mode: skipping face detection and Vosk, lower bitrate")
+    elif args.quality == "preview":
+        print("\n  ⚡ Preview mode: full quality video, skipping face detection and Vosk")
 
     # --- Stage 4 + 5: Prepare + render clips (parallel) ---
     print("=" * 50)
@@ -206,7 +209,7 @@ def main():
             clip["endTime"] = trimmed_end
 
         # Per-clip face detection (skip in draft mode)
-        if args.skip_face or is_draft:
+        if args.skip_face or skip_heavy:
             face_pos = {"found": False}
         else:
             print("    Detecting face...")
@@ -217,7 +220,7 @@ def main():
         if not args.no_captions:
             print("    Generating captions...")
             vosk_words = None
-            if not is_draft:
+            if not skip_heavy:
                 vosk_words = transcribe_clip_words(video_path, clip["startTime"], clip["endTime"])
                 if vosk_words:
                     print(f"    → Vosk: {len(vosk_words)} words with precise timing")
@@ -290,6 +293,10 @@ def main():
 
     if descriptions:
         print(f"\n  Descriptions saved to: {desc_path}")
+
+    if args.quality == "preview":
+        print("\n  💡 These are preview quality. To re-render your favorites in final quality:")
+        print(f"     python3 clip_video.py {video_id} --ai oci --skip-download --quality final")
 
 
 if __name__ == "__main__":
