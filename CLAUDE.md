@@ -69,8 +69,9 @@ python3 clip_video.py "https://youtube.com/watch?v=VIDEO_ID" --ai oci --max-clip
 python3 clip_video.py VIDEO_ID --ai oci --skip-download --max-clips 5
 # Quality presets:
 python3 clip_video.py VIDEO_ID --ai oci --skip-download --quality draft   # fast preview
+python3 clip_video.py VIDEO_ID --ai oci --skip-download --quality preview # high quality preview
 python3 clip_video.py VIDEO_ID --ai oci --skip-download --quality final   # ready to post
-# Options: --no-captions --no-title --skip-face --quality draft|final
+# Options: --no-captions --no-title --skip-face --quality draft|preview|final
 ```
 
 ### 4. rumble_search.py — Rumble Topic Search (single topic)
@@ -119,7 +120,8 @@ data/models/             # Vosk speech models (gitignored)
 - **Auto-trim silence**: detects and removes leading/trailing dead air
 - **Clip overlap detection**: deduplicates overlapping time ranges
 - **Flexible duration**: AI picks 20-90s per clip based on content
-- **Quality presets**: draft (fast, skip face/vosk, lower bitrate) vs final (full quality)
+- **Quality presets**: draft (low bitrate, skip face/vosk), preview (full bitrate, skip face/vosk), final (full quality) — use preview for iteration, final for posting
+- **Fade transitions**: 0.3s video + audio fade in/out on all clips
 - **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
 - **Vosk fallback**: auto-transcribes when no YouTube transcript available
 
@@ -174,6 +176,11 @@ scenes:
 - FFmpeg `-ss` MUST come BEFORE `-i` for ASS subtitle timing
 - scene_padding (0.3s) must match between composer and remotion_bridge
 - Clip rendering uses ThreadPoolExecutor (dynamic thread count via platform_utils) — not ProcessPoolExecutor (pickle error)
+- Vosk large model: must remove/rename `rescore/` dir (has G.carpa not G.fst, causes load failure)
+- ASS subtitle `\fscx/\fscy` animation causes vertical text shift — use `\bord` pulse instead
+- Gemini 2.5 Flash sometimes returns 0 clips on large transcripts — Grok fallback handles this automatically
+- OCI disk resize: `oci-growfs` not available, use `sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`
+- Rumble search pages blocked by Cloudflare — use SerpAPI `site:rumble.com` queries instead
 - Server: 8 vCPUs (4 cores × 2 threads), 32GB RAM, 200GB storage (AMD EPYC)
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
@@ -182,6 +189,25 @@ scenes:
 - When receiving a Telegram message, always acknowledge receipt with a quick reply before starting any work
 - When sending rendered clips via Telegram, send each clip's TikTok description (hook line + max 5 hashtags) as a separate message so it's easy to copy-paste
 - Run clip generation (download, transcribe, render) in the background so the user can still interact during processing
+- When sending preview-quality clips, remind the user to pick favorites for final-quality re-rendering
+
+## OCI Video Workflow
+```bash
+# Download video from OCI and generate clips (most common workflow):
+# 1. User uploads to OCI: oci://finance-videos/{VIDEO_ID}.mp4
+# 2. Download with Python OCI SDK (Instance Principal auth):
+python3 -c "
+import oci
+signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+client = oci.object_storage.ObjectStorageClient({}, signer=signer)
+obj = client.get_object('idtd7ksjim3e', 'finance-videos', 'VIDEO_ID.mp4')
+with open('data/videos/VIDEO_ID.mp4', 'wb') as f:
+    for chunk in obj.data.raw.stream(8192, decode_content=False):
+        f.write(chunk)
+"
+# 3. Generate clips:
+python3 clip_video.py VIDEO_ID --ai oci --skip-download --max-clips 5 --quality preview
+```
 
 ## Output
 - Format: H.264 + AAC, 1080x1920, 30fps
