@@ -88,23 +88,42 @@ def main():
     try:
         segments = get_transcript(video_id, cookies_file=cookies_file)
     except RuntimeError:
-        # No YouTube transcript — fall back to Vosk transcription
-        print("  No online transcript, transcribing with Vosk...")
+        # No local transcript — try downloading from OCI
         import json
-        from clipper.transcribe_clip import transcribe_clip
-        import subprocess as _sp
-        _probe = _sp.run(
-            ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
-             "-of", "csv=p=0", video_path],
-            capture_output=True, text=True,
-        )
-        _duration = float(_probe.stdout.strip())
-        segments = transcribe_clip(video_path, 0, _duration)
-        # Cache for reuse
         transcript_cache = str(Path(data_dir) / "videos" / f"{video_id}_transcript.json")
-        with open(transcript_cache, "w") as f:
-            json.dump(segments, f)
-        print(f"  Vosk: {len(segments)} segments (saved to cache)")
+        if not os.path.exists(transcript_cache):
+            try:
+                import oci
+                print("  Checking OCI for uploaded transcript...")
+                _signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+                _client = oci.object_storage.ObjectStorageClient({}, signer=_signer)
+                _obj = _client.get_object("idtd7ksjim3e", "finance-videos", f"{video_id}_transcript.json")
+                with open(transcript_cache, "wb") as f:
+                    for chunk in _obj.data.raw.stream(8192, decode_content=False):
+                        f.write(chunk)
+                print("  → Found transcript on OCI!")
+            except Exception:
+                pass
+
+        if os.path.exists(transcript_cache) and os.path.getsize(transcript_cache) > 0:
+            with open(transcript_cache) as f:
+                segments = json.load(f)
+            print(f"  → Loaded cached transcript: {len(segments)} segments")
+        else:
+            # Fall back to Vosk transcription
+            print("  No transcript available, transcribing with Vosk...")
+            from clipper.transcribe_clip import transcribe_clip
+            import subprocess as _sp
+            _probe = _sp.run(
+                ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", video_path],
+                capture_output=True, text=True,
+            )
+            _duration = float(_probe.stdout.strip())
+            segments = transcribe_clip(video_path, 0, _duration)
+            with open(transcript_cache, "w") as f:
+                json.dump(segments, f)
+            print(f"  Vosk: {len(segments)} segments (saved to cache)")
     transcript = format_transcript_for_ai(segments)
     print(f"  → {len(segments)} segments, {len(transcript)} characters")
 
@@ -198,7 +217,17 @@ def main():
         print(f"    Time: {clip['startTime']:.0f}s - {clip['endTime']:.0f}s "
               f"({clip['endTime'] - clip['startTime']:.0f}s)")
 
-        # Auto-trim leading/trailing silence
+        # Extend end point by 3s buffer, then find natural silence to end on
+        extended_end = clip["endTime"] + 3.0
+        _, natural_end = detect_silence_boundaries(
+            video_path, clip["endTime"] - 1.0, extended_end
+        )
+        if natural_end > clip["endTime"]:
+            print(f"    Extended end: {clip['endTime']:.1f}s → {natural_end:.1f}s "
+                  f"(+{natural_end - clip['endTime']:.1f}s to natural pause)")
+            clip["endTime"] = natural_end
+
+        # Auto-trim leading silence
         trimmed_start, trimmed_end = detect_silence_boundaries(
             video_path, clip["startTime"], clip["endTime"]
         )
