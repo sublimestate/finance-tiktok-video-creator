@@ -25,9 +25,9 @@ Selection criteria (prioritize segments with these qualities):
 - **Story moments**: Mini-narratives with a clear beginning, middle, and punchline
 
 Rules:
-- Each clip should be 20-90 seconds — choose the optimal length for each segment (shorter for punchy takes, longer for stories)
+- Each clip should be 45-90 seconds — prefer longer clips that let the speaker finish their complete thought
 - Clips should start at a natural beginning of a thought (not mid-sentence)
-- Clips should end at a natural conclusion or punchline
+- Clips MUST end AFTER the speaker completes their point — never cut mid-sentence or mid-thought
 - Avoid segments that require too much prior context to understand
 - Clips MUST NOT overlap — each clip should be from a completely different part of the video with at least 30 seconds gap between them
 - Score each clip 1-100 based on estimated viral potential"""
@@ -47,7 +47,7 @@ You MUST respond with valid JSON matching this exact format:
 Rules for the JSON:
 - "title": catchy clickbait-style title, max 80 chars
 - "startTime": start time in seconds (number, from the timestamps above)
-- "endTime": end time in seconds (number), 20-90 seconds after startTime — choose optimal length per clip
+- "endTime": end time in seconds (number), 45-90 seconds after startTime — let the speaker finish their thought
 - "reason": 1-2 sentences on why this segment would go viral
 - "score": viral potential 1-100
 - "description": a TikTok post description — start with a compelling hook line that makes people stop scrolling (use a quote, bold claim, or shocking stat from the clip), then add exactly 5 relevant hashtags. Max 150 chars total. Example: '"The rich aren\'t paying their fair share" — here\'s the proof 🔥 #taxes #finance #politics #money #wealth'
