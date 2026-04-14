@@ -158,9 +158,11 @@ def main():
             video_title, transcript,
             model_id="google.gemini-2.5-flash",
         )
-        # Fallback: if Gemini returns too few clips, retry with Grok
-        if len(clips) < args.max_clips:
-            print(f"  Gemini returned {len(clips)} clips, retrying with Grok for better coverage...")
+        # Fallback: if Gemini returned far fewer than requested, retry with
+        # Grok. Skip when the gap is just one clip — a single missing clip
+        # isn't worth a second 30s+ AI roundtrip.
+        if len(clips) < args.max_clips - 1:
+            print(f"  Gemini returned {len(clips)} clips (wanted {args.max_clips}), retrying with Grok for better coverage...")
             grok_transcript = transcript[:25000] if len(transcript) > 25000 else transcript
             grok_clips = analyze_transcript_oci(
                 video_title, grok_transcript,

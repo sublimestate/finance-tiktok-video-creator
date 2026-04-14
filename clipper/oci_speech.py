@@ -2,12 +2,11 @@
 
 import json
 import os
+import struct
 import subprocess
-import tempfile
 import time
 import uuid
-from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 try:
     import oci
@@ -46,24 +45,32 @@ def transcribe_clip_oci(
     speech_client = oci.ai_speech.AIServiceSpeechClient(config={}, signer=signer)
     compartment_id = _get_compartment_id()
 
-    # Extract audio for this clip
+    # Extract audio for this clip directly into memory — no temp file.
+    # ffmpeg writes WAV to stdout, we hand the bytes straight to OCI.
     duration = end_time - start_time
-    tmp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-    tmp_wav.close()
-
     try:
-        subprocess.run(
+        proc = subprocess.run(
             ["ffmpeg", "-y", "-ss", str(start_time), "-i", video_path,
              "-t", str(duration), "-ar", "16000", "-ac", "1", "-f", "wav",
-             tmp_wav.name],
+             "pipe:1"],
             capture_output=True, timeout=max(60, int(duration / 5)),
         )
+        if proc.returncode != 0 or not proc.stdout:
+            return []
+        # ffmpeg can't seek a pipe, so it leaves the RIFF and data chunk
+        # sizes as 0xFFFFFFFF placeholders. OCI Speech rejects this. Patch
+        # both lengths in place using the actual byte counts.
+        wav_bytes = bytearray(proc.stdout)
+        struct.pack_into("<I", wav_bytes, 4, len(wav_bytes) - 8)
+        data_off = wav_bytes.find(b"data")
+        if data_off > 0:
+            struct.pack_into("<I", wav_bytes, data_off + 4, len(wav_bytes) - data_off - 8)
+        wav_bytes = bytes(wav_bytes)
 
         # Upload audio to OCI Object Storage. uuid suffix avoids collisions
         # when multiple parallel prep threads call this in the same second.
         obj_name = f"temp_speech_{os.getpid()}_{int(time.time())}_{uuid.uuid4().hex[:8]}.wav"
-        with open(tmp_wav.name, "rb") as f:
-            os_client.put_object(NAMESPACE, BUCKET, obj_name, f)
+        os_client.put_object(NAMESPACE, BUCKET, obj_name, wav_bytes)
 
         # Create transcription job
         job_details = oci.ai_speech.models.CreateTranscriptionJobDetails(
@@ -156,6 +163,3 @@ def transcribe_clip_oci(
 
     except Exception:
         return []
-    finally:
-        if os.path.exists(tmp_wav.name):
-            os.unlink(tmp_wav.name)
