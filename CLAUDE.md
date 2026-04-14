@@ -129,6 +129,7 @@ data/models/             # Vosk speech models (gitignored)
 - **Fade transitions**: 0.3s video + audio fade in/out on all clips
 - **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
 - **Transcription chain**: YouTube transcript (via upload_video.sh) → OCI Speech AI (cloud) → Vosk (local fallback)
+- **Pipelined prep+render**: one ThreadPoolExecutor runs `_prepare_and_render` per clip (silence detect → transcribe → face → render). Fast clips finish encoding while slow ones still transcribe — no "all prep, then all render" barrier
 
 ## Source Video Selection
 - Best clips come from emotional interviews, confrontations, personal stories with stakes
@@ -197,6 +198,9 @@ scenes:
 - OCI Speech AI requires audio uploaded to Object Storage first, results written to speech_output/ prefix
 - Server: 32 vCPUs, 62GB RAM, 200GB storage (AMD EPYC Flex shape, upgraded 2026-04-14 from 8 vCPU / 32GB)
 - Parallel render threads capped at 12 on Linux (`platform_utils.get_thread_count()`) — each libx264 encode is itself multi-threaded, so higher counts oversubscribe cores
+- ffmpeg WAV to pipe leaves RIFF/data chunk sizes as 0xFFFFFFFF (ffmpeg can't seek a pipe) — OCI Speech rejects this. Patch both length fields with `struct.pack_into` before upload (clipper/oci_speech.py)
+- OCI GenAI + Speech require explicit dynamic-group policies (`use generative-ai-family`, `use ai-service-speech-family`) — object-storage policies don't grant them. 404 NotAuthorizedOrNotFound = IAM, not code
+- Per-clip prep is thread-parallel — silence detect (subprocess), face detect (cv2), OCI Speech (network), Vosk (C ext) all release the GIL. Vosk model loading is locked via `threading.Lock` in clipper/transcribe_clip.py to prevent duplicate loads on cold cache
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
