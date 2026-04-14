@@ -77,10 +77,21 @@ def build_caption_events_wordlevel(
         return []
 
     events = []
-    words_per_group = 4
+    words_per_group = 2  # fewer words per group = tighter sync
 
-    for i in range(0, len(vosk_words), words_per_group):
-        group = vosk_words[i:i + words_per_group]
+    # Group words, but split on gaps > 0.4s (speaker pauses/changes)
+    groups = []
+    current_group = []
+    for w in vosk_words:
+        if current_group and (w["start"] - current_group[-1]["end"] > 0.4
+                             or len(current_group) >= words_per_group):
+            groups.append(current_group)
+            current_group = []
+        current_group.append(w)
+    if current_group:
+        groups.append(current_group)
+
+    for group in groups:
         if not group:
             continue
         g_start = group[0]["start"]

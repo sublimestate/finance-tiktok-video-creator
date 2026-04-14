@@ -58,6 +58,7 @@ def render_clip(
     end_time: float,
     captions_file: Optional[str] = None,
     clip_title: Optional[str] = None,
+    hook_quote: Optional[str] = None,
     face_position: Optional[Dict] = None,
     draft: bool = False,
 ) -> str:
@@ -81,8 +82,9 @@ def render_clip(
 
     last_label = "out0"
 
-    # Step 2: Hook title banner (first 5 seconds)
-    if clip_title:
+    # Step 2: Hook quote overlay (first 2 seconds — scroll-stopping text)
+    hook_text = hook_quote or clip_title
+    if hook_text:
         def _escape_drawtext(t):
             return (t.replace("\\", "\\\\")
                      .replace("'", "'\\''")
@@ -90,42 +92,45 @@ def render_clip(
                      .replace(";", "\\;")
                      .replace("%", "%%"))
 
-        # Wrap long titles into two lines (~25 chars per line)
-        max_chars = 25
-        if len(clip_title) > max_chars:
-            words = clip_title.split()
-            line1, line2 = [], []
-            for w in words:
-                if len(" ".join(line1 + [w])) <= max_chars:
-                    line1.append(w)
-                else:
-                    line2.append(w)
-            lines = [" ".join(line1), " ".join(line2)]
-        else:
-            lines = [clip_title]
+        # Wrap into lines (~20 chars per line for large font)
+        max_chars = 20
+        words = hook_text.upper().split()
+        lines = []
+        current_line = []
+        for w in words:
+            if len(" ".join(current_line + [w])) <= max_chars:
+                current_line.append(w)
+            else:
+                if current_line:
+                    lines.append(" ".join(current_line))
+                current_line = [w]
+        if current_line:
+            lines.append(" ".join(current_line))
+        lines = lines[:3]  # max 3 lines
 
         num_lines = len(lines)
-        banner_h = 120 + (num_lines - 1) * 70
-        banner_y = 300
+        line_height = 80
+        banner_h = 40 + num_lines * line_height
+        banner_y = int(1920 * 0.15)  # top area of screen
 
-        # Dark banner across full width with padding
+        # Dark semi-transparent background — centered on screen
         filters.append(
-            f"[{last_label}]drawbox=x=0:y={banner_y}:w=iw:h={banner_h}:"
-            f"color=black@0.7:t=fill:enable='between(t,0,5)'[out1a]"
+            f"[{last_label}]drawbox=x=0:y={banner_y - 20}:w=iw:h={banner_h + 40}:"
+            f"color=black@0.75:t=fill:enable='between(t,0,2)'[out1a]"
         )
 
-        # Draw each line of text centered
+        # Draw each line of text centered — big bold white
         prev_label = "out1a"
         for i, line in enumerate(lines):
             escaped = _escape_drawtext(line)
-            text_y = banner_y + 25 + i * 70
-            next_label = f"out1{'b' if i == 0 and num_lines > 1 else ''}"
-            if i == len(lines) - 1:
+            text_y = banner_y + i * line_height + 10
+            next_label = f"out1{'b' if i < num_lines - 1 else ''}"
+            if i == num_lines - 1:
                 next_label = "out1"
             filters.append(
                 f"[{prev_label}]drawtext=text='{escaped}':"
-                f"fontsize=52:fontcolor=white:borderw=3:bordercolor=black:"
-                f"font=Arial:x=(w-text_w)/2:y={text_y}:enable='between(t,0,5)'[{next_label}]"
+                f"fontsize=64:fontcolor=white:borderw=4:bordercolor=black:"
+                f"font=Arial:x=(w-text_w)/2:y={text_y}:enable='between(t,0,2)'[{next_label}]"
             )
             prev_label = next_label
         last_label = "out1"

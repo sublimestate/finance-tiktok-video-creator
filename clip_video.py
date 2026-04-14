@@ -15,7 +15,9 @@ from clipper.analyze import analyze_transcript_ollama, analyze_transcript_anthro
 from clipper.facedetect import detect_face, detect_face_in_clip
 from clipper.captions import generate_captions_file
 from clipper.transcribe_clip import transcribe_clip_words
+from clipper.oci_speech import transcribe_clip_oci
 from clipper.render import render_clip, detect_silence_boundaries
+from clipper.detect_captions import has_burned_captions
 
 
 def extract_video_id(url_or_id: str) -> str:
@@ -209,6 +211,7 @@ def main():
     captions_dir = str(Path(data_dir) / "captions")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+
     # Prepare all clips first (captions, face detection) — sequential due to vosk model
     clip_jobs = []
     for i, clip in enumerate(clips):
@@ -244,18 +247,29 @@ def main():
             print("    Detecting face...")
             face_pos = detect_face_in_clip(video_path, clip["startTime"], clip["endTime"])
 
-        # Captions — use Vosk word-level timing in final mode, even split in draft
+        # Captions — check per-clip for burned-in captions, skip if detected
         captions_path = None
+        clip_has_captions = False
         if not args.no_captions:
+            clip_has_captions = has_burned_captions(video_path, clip["startTime"])
+            if clip_has_captions:
+                print("    ⚠ Burned-in captions detected — skipping overlay")
+        if not args.no_captions and not clip_has_captions:
             print("    Generating captions...")
-            vosk_words = None
+            word_timestamps = None
             if not skip_heavy:
-                vosk_words = transcribe_clip_words(video_path, clip["startTime"], clip["endTime"])
-                if vosk_words:
-                    print(f"    → Vosk: {len(vosk_words)} words with precise timing")
+                # Try OCI Speech AI first (cloud, fast, accurate)
+                word_timestamps = transcribe_clip_oci(video_path, clip["startTime"], clip["endTime"])
+                if word_timestamps:
+                    print(f"    → OCI Speech: {len(word_timestamps)} words")
+                else:
+                    # Fall back to local Vosk
+                    word_timestamps = transcribe_clip_words(video_path, clip["startTime"], clip["endTime"])
+                    if word_timestamps:
+                        print(f"    → Vosk: {len(word_timestamps)} words")
             captions_path = generate_captions_file(
                 clip_id, segments, clip["startTime"], clip["endTime"], captions_dir,
-                vosk_words=vosk_words,
+                vosk_words=word_timestamps,
             )
 
         output_path = str(Path(output_dir) / f"{clip_id}_{i+1}.mp4")
@@ -266,6 +280,7 @@ def main():
             "end_time": clip["endTime"],
             "captions_file": captions_path,
             "clip_title": None if args.no_title else clip["title"],
+            "hook_quote": clip.get("hook_quote"),
             "face_position": face_pos,
             "draft": is_draft,
         })
