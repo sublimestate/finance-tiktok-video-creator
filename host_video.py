@@ -18,7 +18,6 @@ TTS" optimization from the spec is deferred — single-pod batching
 still gives most of the cost benefit.
 """
 import argparse
-import json as _json
 import os
 import sys
 import time
@@ -32,14 +31,14 @@ from slugify import slugify
 from quick_video import research_topic
 from pipeline.host_script import generate_host_script, host_beat_indices
 from pipeline.parser import parse_script, WordTiming
-from pipeline.tts import generate_tts, get_audio_duration
+from pipeline.tts import generate_tts
 from pipeline.assets import fetch_asset
 from pipeline.composer import build_background, build_audio, compose_final
 from pipeline.remotion_bridge import render_overlays
 
 # New avatar module
 from avatar.character import load_character
-from avatar.render import render_cutaways_batch
+from avatar.render import render_cutaways_batch, render_still_portrait_fallback
 
 PROJECT_DIR = Path(__file__).parent.resolve()
 DATA_DIR = PROJECT_DIR / "data"
@@ -134,10 +133,12 @@ def main() -> int:
     print(f"  Title: {script_data.get('title', '?')}")
     print(f"  Scenes: {len(script_data.get('scenes', []))}, host beats: {indices}")
 
+    # Compute slug once for both fallback and main paths
+    slug = slugify(script_data.get("title", headline))[:40]
+
     # No-host-beats fallback: shell out to quick_video for a normal collage video
     if not indices:
         print("  AI returned 0 host beats — falling back to standard collage video.")
-        slug = slugify(script_data.get("title", headline))[:40]
         script_path = PROJECT_DIR / "scripts" / f"{slug}.yaml"
         script_path.parent.mkdir(parents=True, exist_ok=True)
         with open(script_path, "w") as f:
@@ -146,7 +147,6 @@ def main() -> int:
         return rc >> 8
 
     # 4. Save script YAML so the existing parser can load it
-    slug = slugify(script_data.get("title", headline))[:40]
     script_path = PROJECT_DIR / "scripts" / f"{slug}.yaml"
     script_path.parent.mkdir(parents=True, exist_ok=True)
     with open(script_path, "w") as f:
@@ -225,7 +225,6 @@ def main() -> int:
         for idx, audio_path in host_pairs
     ]
     if args.no_runpod:
-        from avatar.render import render_still_portrait_fallback
         cutaway_paths: List[Path] = []
         for audio_path, output_path in cutaway_jobs:
             cutaway_paths.append(
