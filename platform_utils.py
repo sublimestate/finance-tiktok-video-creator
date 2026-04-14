@@ -55,5 +55,6 @@ def get_thread_count() -> int:
     cpus = os.cpu_count() or 4
     if is_mac():
         return min(cpus, 6)
-    # Linux: use most CPUs, leave 1-2 free for system
-    return max(3, cpus - 2)
+    # Linux: each FFmpeg libx264 encode is multi-threaded, so cap parallel
+    # workers to avoid oversubscribing cores. 12 saturates a 32-vCPU box.
+    return max(3, min(cpus - 2, 12))

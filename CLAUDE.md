@@ -195,8 +195,8 @@ scenes:
 - YouTube blocks transcript API from cloud IPs too — always upload transcript from Mac via upload_video.sh
 - Burned-in caption detection (clipper/detect_captions.py) disabled due to false positives — use --no-captions flag
 - OCI Speech AI requires audio uploaded to Object Storage first, results written to speech_output/ prefix
-- Instance shape VM.Standard.E2.4 is fixed — cannot resize CPU/RAM independently. Need E4/E5 Flex for that.
-- Server: 8 vCPUs (4 cores × 2 threads), 32GB RAM, 200GB storage (AMD EPYC)
+- Server: 32 vCPUs, 62GB RAM, 200GB storage (AMD EPYC Flex shape, upgraded 2026-04-14 from 8 vCPU / 32GB)
+- Parallel render threads capped at 12 on Linux (`platform_utils.get_thread_count()`) — each libx264 encode is itself multi-threaded, so higher counts oversubscribe cores
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
