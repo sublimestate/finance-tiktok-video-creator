@@ -5,6 +5,7 @@ exception — the only safety net against orphaned $0.34/hr billing.
 """
 import os
 import time
+from datetime import date
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -15,6 +16,8 @@ DEFAULT_GPU_TYPE = "NVIDIA RTX A5000"  # A10-class, change to "NVIDIA A10" or si
 POD_BOOT_TIMEOUT_SEC = 180
 POD_HEALTH_TIMEOUT_SEC = 120
 RENDER_TIMEOUT_SEC = 300
+A10_HOURLY_USD = 0.34  # RunPod community A10 — update if pricing changes
+DEFAULT_MAX_SECONDS_PER_RUN = 600  # $0.057 at A10 rates
 
 
 class RunPodError(RuntimeError):
@@ -52,6 +55,7 @@ class RunPodSession:
     # --- Lifecycle ---
 
     def __enter__(self) -> "RunPodSession":
+        self._started_at = time.monotonic()
         self._create_pod()
         try:
             self._wait_for_running()
@@ -59,11 +63,13 @@ class RunPodSession:
         except Exception:
             # Clean up the pod we just allocated if anything in startup fails
             self._stop_pod_safely()
+            self._record_billing()
             raise
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self._stop_pod_safely()
+        self._record_billing()
 
     # --- Public API ---
 
@@ -151,6 +157,29 @@ class RunPodSession:
                 pass
             time.sleep(3)
         raise RunPodError(f"pod {self.pod_id} inner service never reported healthy")
+
+    def _record_billing(self) -> None:
+        if not getattr(self, "_started_at", None):
+            return
+        elapsed = time.monotonic() - self._started_at
+        cost = elapsed / 3600.0 * A10_HOURLY_USD
+        max_seconds = float(os.environ.get(
+            "MAX_RUNPOD_SECONDS_PER_RUN", DEFAULT_MAX_SECONDS_PER_RUN
+        ))
+        if elapsed > max_seconds:
+            print(
+                f"WARNING: RunPod session exceeded MAX_RUNPOD_SECONDS_PER_RUN "
+                f"({elapsed:.0f}s > {max_seconds:.0f}s, est ${cost:.3f})"
+            )
+        log_path = os.environ.get(
+            "RUNPOD_BILLING_LOG", "data/avatar/billing.log"
+        )
+        try:
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "a") as f:
+                f.write(f"{date.today().isoformat()}\t{elapsed:.1f}\t{cost:.4f}\n")
+        except OSError:
+            pass  # Billing log is best-effort
 
     def _stop_pod_safely(self) -> None:
         if not self.pod_id:

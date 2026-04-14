@@ -146,3 +146,29 @@ def test_render_batch_propagates_partial_failure_and_still_stops_pod(tmp_path: P
         # Verify the stop endpoint was called even though the batch raised
         stop_calls = [c for c in rsps.calls if c.request.url.endswith("/stop")]
         assert len(stop_calls) == 1, "pod must stop even when mid-batch render fails"
+
+
+def test_session_appends_to_billing_log(tmp_path: Path, mock_runpod_lifecycle, monkeypatch):
+    monkeypatch.setenv("RUNPOD_BILLING_LOG", str(tmp_path / "billing.log"))
+    with RunPodSession(image="liveportrait-runpod:0.1.0", api_key="fake"):
+        pass
+    log = (tmp_path / "billing.log").read_text()
+    # Format: "<isodate>\t<seconds>\t<cost_estimate>\n"
+    assert "\t" in log
+    parts = log.strip().split("\t")
+    assert len(parts) == 3
+    seconds = float(parts[1])
+    assert seconds >= 0
+
+
+def test_session_warns_if_exceeds_max_seconds(
+    tmp_path: Path, mock_runpod_lifecycle, monkeypatch, capsys
+):
+    monkeypatch.setenv("MAX_RUNPOD_SECONDS_PER_RUN", "0")  # any session exceeds this
+    monkeypatch.setenv("RUNPOD_BILLING_LOG", str(tmp_path / "billing.log"))
+
+    with RunPodSession(image="liveportrait-runpod:0.1.0", api_key="fake"):
+        pass
+
+    out = capsys.readouterr().out
+    assert "exceeded" in out.lower() or "warning" in out.lower()
