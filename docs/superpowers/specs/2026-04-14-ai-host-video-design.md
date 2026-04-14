@@ -46,7 +46,7 @@ avatar/                    # NEW module
 data/avatar/               # NEW (gitignored)
   portrait.png             #   the recurring host (one-time setup output)
   portrait.png.bak         #   previous portrait, for rollback
-  candidates/              #   Flux portrait candidates from setup_host.py
+  candidates/              #   Flux portrait candidates + 2x2 preview.png from setup_host.py
   character.yaml           #   { name, voice, prompt_used, created }
   billing.log              #   per-day RunPod-seconds counter
 
