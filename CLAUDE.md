@@ -130,6 +130,7 @@ data/models/             # Vosk speech models (gitignored)
 - **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
 - **Transcription chain**: YouTube transcript (via upload_video.sh) → OCI Speech AI (cloud) → Vosk (local fallback)
 - **Pipelined prep+render**: one ThreadPoolExecutor runs `_prepare_and_render` per clip (silence detect → transcribe → face → render). Fast clips finish encoding while slow ones still transcribe — no "all prep, then all render" barrier
+- **AI host video** (`host_video.py`): generates a TikTok with 2-3 AI-rendered avatar cutaway scenes inside the existing collage style. Requires `RUNPOD_API_KEY` env var and a portrait at `data/avatar/portrait.png` (run `setup_host.py` first with `REPLICATE_API_TOKEN` set). Use `--no-runpod` to develop with still-portrait fallbacks instead of GPU calls. Pipeline: `python3 host_video.py "headline"`. Spec: `docs/superpowers/specs/2026-04-14-ai-host-video-design.md`. Plan: `docs/superpowers/plans/2026-04-14-ai-host-video.md`.
 - **Perf testing**: use `data/videos/JJeQ8531HgE.mp4` (82MB, transcript cached) as the canonical small test video — `python3 clip_video.py JJeQ8531HgE --ai oci --skip-download --max-clips 3 --quality final` runs the full pipeline in ~2 min
 
 ## Source Video Selection
