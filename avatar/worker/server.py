@@ -1,15 +1,18 @@
-"""LivePortrait inner server — runs inside the RunPod pod.
+"""MuseTalk inner server — runs inside the RunPod pod.
 
 POST /render
     multipart form: portrait (PNG bytes), audio (WAV bytes)
     response: video/mp4 bytes
 
 GET /healthz
-    returns 200 OK once the model is loaded and ready
+    returns 200 OK once MuseTalk is importable (weights are baked into
+    the image, so loading is effectively instant after the first /render)
 """
 import io
 import os
+import shutil
 import subprocess
+import sys
 import tempfile
 from functools import wraps
 from pathlib import Path
@@ -17,7 +20,7 @@ from pathlib import Path
 from flask import Flask, request, send_file
 
 app = Flask(__name__)
-LIVEPORTRAIT_DIR = Path(os.environ.get("LIVEPORTRAIT_DIR", "/opt/LivePortrait"))
+MUSETALK_DIR = Path(os.environ.get("MUSETALK_DIR", "/opt/MuseTalk"))
 MODEL_LOADED = False
 
 # Optional shared-secret auth. Set WORKER_AUTH_TOKEN in the RunPod pod env to
@@ -51,34 +54,65 @@ def render():
     portrait_bytes = request.files["portrait"].read()
     audio_bytes = request.files["audio"].read()
 
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(dir=str(MUSETALK_DIR)) as tmp:
         tmp_path = Path(tmp)
         portrait_path = tmp_path / "portrait.png"
         audio_path = tmp_path / "audio.wav"
-        out_path = tmp_path / "out.mp4"
+        config_path = tmp_path / "config.yaml"
+        result_dir = tmp_path / "results"
+
         portrait_path.write_bytes(portrait_bytes)
         audio_path.write_bytes(audio_bytes)
 
-        # LivePortrait CLI invocation. The exact flags depend on the
-        # version baked into the image — confirm against the LivePortrait
-        # README at the pinned commit.
+        # MuseTalk reads a YAML config describing tasks. video_path can
+        # be an image (jpg/png) — MuseTalk treats it as a single-frame
+        # source and extends it to match audio duration.
+        config_path.write_text(
+            f"task_0:\n"
+            f" video_path: \"{portrait_path}\"\n"
+            f" audio_path: \"{audio_path}\"\n"
+        )
+
         cmd = [
-            "python", str(LIVEPORTRAIT_DIR / "inference.py"),
-            "-s", str(portrait_path),
-            "-d", str(audio_path),
-            "-o", str(out_path),
-            "--driving_audio",
-            "--no-flag-pasteback",
+            sys.executable, "-m", "scripts.inference",
+            "--inference_config", str(config_path),
+            "--result_dir", str(result_dir),
+            "--unet_model_path", str(MUSETALK_DIR / "models/musetalkV15/unet.pth"),
+            "--unet_config", str(MUSETALK_DIR / "models/musetalkV15/musetalk.json"),
+            "--whisper_dir", str(MUSETALK_DIR / "models/whisper"),
+            "--version", "v15",
         ]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=False, timeout=300)
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=False,
+                timeout=300,
+                cwd=str(MUSETALK_DIR),
+            )
         except subprocess.TimeoutExpired:
-            return ("liveportrait timed out after 300s", 504)
-        if proc.returncode != 0 or not out_path.exists():
-            stderr_text = proc.stderr.decode('utf-8', errors='replace') if proc.stderr else ''
-            return (f"liveportrait failed: {stderr_text[-2000:]}", 500)
+            return ("musetalk timed out after 300s", 504)
 
-        video_bytes = out_path.read_bytes()
+        # MuseTalk's inference.py has a non-fatal cleanup bug
+        # (NameError on save_dir_full) that fires AFTER the output mp4
+        # is written. Don't trust returncode — check whether the file
+        # actually exists.
+        outputs = list(result_dir.glob("v15/*.mp4"))
+        # Filter out intermediate temp files
+        outputs = [p for p in outputs if not p.name.startswith("temp_")]
+
+        if not outputs:
+            stderr_text = (
+                proc.stderr.decode("utf-8", errors="replace")
+                if proc.stderr
+                else ""
+            )
+            return (
+                f"musetalk produced no output: {stderr_text[-2000:]}",
+                500,
+            )
+
+        video_bytes = outputs[0].read_bytes()
 
     return send_file(
         io.BytesIO(video_bytes),
@@ -89,14 +123,25 @@ def render():
 
 
 def warmup():
-    """Touch LivePortrait once so MODEL_LOADED becomes True before the first request."""
+    """Verify the MuseTalk inference module is importable.
+
+    MuseTalk loads weights lazily on the first inference call, so there
+    is no "model loaded" state to warm up. We just confirm that the
+    Python env + code + deps are all in place.
+    """
     global MODEL_LOADED
-    # Cheapest thing that proves the env can import the model and find weights:
     proc = subprocess.run(
-        ["python", "-c", f"import sys; sys.path.insert(0, '{LIVEPORTRAIT_DIR}'); import inference"],
-        capture_output=True, text=True, timeout=60,
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.path.insert(0, '.'); import scripts.inference",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=str(MUSETALK_DIR),
     )
-    MODEL_LOADED = (proc.returncode == 0)
+    MODEL_LOADED = proc.returncode == 0
 
 
 if __name__ == "__main__":
