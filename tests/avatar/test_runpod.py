@@ -102,3 +102,47 @@ def test_failed_pod_create_raises(tmp_path: Path):
         with pytest.raises(RunPodError, match="no GPU"):
             with RunPodSession(image="liveportrait-runpod:0.1.0", api_key="fake"):
                 pass
+
+
+def test_render_batch_propagates_partial_failure_and_still_stops_pod(tmp_path: Path):
+    """If a mid-batch render fails with non-200, the exception propagates
+    and the pod is still stopped via __exit__. This is the cost-safety
+    invariant under partial failure."""
+    portrait = tmp_path / "p.png"
+    portrait.write_bytes(b"png")
+    a1 = tmp_path / "a1.wav"; a1.write_bytes(b"audio1")
+    a2 = tmp_path / "a2.wav"; a2.write_bytes(b"audio2")
+    fake_video = b"\x00\x00\x00 ftypisom" + b"\x00" * 100
+
+    with responses.RequestsMock() as rsps:
+        rsps.post(
+            f"{RUNPOD_BASE}/pods",
+            json={"id": POD_ID, "machineId": "m1"}, status=200,
+        )
+        rsps.get(
+            f"{RUNPOD_BASE}/pods/{POD_ID}",
+            json={
+                "id": POD_ID,
+                "desiredStatus": "RUNNING",
+                "runtime": {
+                    "ports": [{"publicPort": 8000, "isIpPublic": True, "ip": POD_HOST}]
+                },
+            },
+            status=200,
+        )
+        rsps.get(f"{INNER_BASE}/healthz", body="ok", status=200)
+        # First render succeeds, second fails with 500
+        rsps.post(f"{INNER_BASE}/render", body=fake_video, status=200)
+        rsps.post(f"{INNER_BASE}/render", body="liveportrait crashed", status=500)
+        rsps.post(f"{RUNPOD_BASE}/pods/{POD_ID}/stop", json={"id": POD_ID}, status=200)
+
+        with pytest.raises(RunPodError, match="render failed"):
+            with RunPodSession(image="liveportrait-runpod:0.1.0", api_key="fake") as session:
+                session.render_batch([
+                    (portrait, a1, tmp_path / "o1.mp4"),
+                    (portrait, a2, tmp_path / "o2.mp4"),
+                ])
+
+        # Verify the stop endpoint was called even though the batch raised
+        stop_calls = [c for c in rsps.calls if c.request.url.endswith("/stop")]
+        assert len(stop_calls) == 1, "pod must stop even when mid-batch render fails"
