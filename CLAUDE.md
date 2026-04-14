@@ -130,6 +130,7 @@ data/models/             # Vosk speech models (gitignored)
 - **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
 - **Transcription chain**: YouTube transcript (via upload_video.sh) → OCI Speech AI (cloud) → Vosk (local fallback)
 - **Pipelined prep+render**: one ThreadPoolExecutor runs `_prepare_and_render` per clip (silence detect → transcribe → face → render). Fast clips finish encoding while slow ones still transcribe — no "all prep, then all render" barrier
+- **Perf testing**: use `data/videos/JJeQ8531HgE.mp4` (82MB, transcript cached) as the canonical small test video — `python3 clip_video.py JJeQ8531HgE --ai oci --skip-download --max-clips 3 --quality final` runs the full pipeline in ~2 min
 
 ## Source Video Selection
 - Best clips come from emotional interviews, confrontations, personal stories with stakes
@@ -201,6 +202,7 @@ scenes:
 - ffmpeg WAV to pipe leaves RIFF/data chunk sizes as 0xFFFFFFFF (ffmpeg can't seek a pipe) — OCI Speech rejects this. Patch both length fields with `struct.pack_into` before upload (clipper/oci_speech.py)
 - OCI GenAI + Speech require explicit dynamic-group policies (`use generative-ai-family`, `use ai-service-speech-family`) — object-storage policies don't grant them. 404 NotAuthorizedOrNotFound = IAM, not code
 - Per-clip prep is thread-parallel — silence detect (subprocess), face detect (cv2), OCI Speech (network), Vosk (C ext) all release the GIL. Vosk model loading is locked via `threading.Lock` in clipper/transcribe_clip.py to prevent duplicate loads on cold cache
+- clipper/oci_speech.py wraps the whole flow in `except Exception: return []` — silent fallback hides real failures during debugging. Temporarily replace with `traceback.print_exc()` or check `list_transcription_jobs` for FAILED state when OCI Speech mysteriously returns 0 words
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
