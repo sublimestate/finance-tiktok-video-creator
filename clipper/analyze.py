@@ -25,12 +25,14 @@ Selection criteria (prioritize segments with these qualities):
 - **Story moments**: Mini-narratives with a clear beginning, middle, and punchline
 
 Rules:
-- Each clip should be 45-90 seconds — prefer longer clips that let the speaker finish their complete thought
-- Clips should start at a natural beginning of a thought (not mid-sentence)
-- Clips MUST end AFTER the speaker completes their point — never cut mid-sentence or mid-thought
+- Each clip should be 30-45 seconds — short and punchy wins on TikTok. Only go longer if the story absolutely needs it.
+- Start at the MOST DRAMATIC or SHOCKING moment — not the beginning of the thought. The first 2 seconds must hook the viewer.
+- Clips MUST end after the speaker completes their point — never cut mid-sentence
 - Avoid segments that require too much prior context to understand
+- Prioritize: emotional reactions, shocking numbers/stats, arguments, controversial takes, funny moments
 - Clips MUST NOT overlap — each clip should be from a completely different part of the video with at least 30 seconds gap between them
-- Score each clip 1-100 based on estimated viral potential"""
+- Score each clip 1-100 based on estimated viral potential
+- Also include a "hook_quote" field: the single most provocative/shocking sentence from the clip that would make someone stop scrolling"""
 
 
 def build_user_prompt(video_title: str, transcript: str) -> str:
@@ -42,14 +44,15 @@ Transcript:
 {transcript}
 
 You MUST respond with valid JSON matching this exact format:
-{{"clips": [{{"title": "catchy title", "startTime": 120, "endTime": 155, "reason": "why this works", "score": 85, "description": "TikTok description with hook line and hashtags"}}]}}
+{{"clips": [{{"title": "catchy title", "startTime": 120, "endTime": 155, "reason": "why this works", "score": 85, "hook_quote": "The most shocking sentence from this clip", "description": "TikTok description with hook line and hashtags"}}]}}
 
 Rules for the JSON:
 - "title": catchy clickbait-style title, max 80 chars
 - "startTime": start time in seconds (number, from the timestamps above)
-- "endTime": end time in seconds (number), 45-90 seconds after startTime — let the speaker finish their thought
+- "endTime": end time in seconds (number), 30-45 seconds after startTime — keep it SHORT
 - "reason": 1-2 sentences on why this segment would go viral
 - "score": viral potential 1-100
+- "hook_quote": the single most shocking/provocative EXACT quote from this clip segment, max 15 words. This will be shown as big text in the first 2 seconds to stop the scroll. Must be a real quote from the transcript.
 - "description": a TikTok post description — start with a compelling hook line that makes people stop scrolling (use a quote, bold claim, or shocking stat from the clip), then add exactly 5 relevant hashtags. Max 150 chars total. Example: '"The rich aren\'t paying their fair share" — here\'s the proof 🔥 #taxes #finance #politics #money #wealth'
 
 You MUST return exactly 5 clips. No more, no less. Each clip should be from a different part of the transcript. Respond with ONLY the JSON object, nothing else."""
