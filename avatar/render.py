@@ -62,9 +62,10 @@ def render_cutaway(
     output_path: Path,
     image: str,
 ) -> Path:
-    """Render one talking-head cutaway. Always returns a valid mp4 at output_path.
+    """Render one talking-head cutaway. Prefers RunPod, falls back to still portrait.
 
-    Tries RunPod first. On any failure, writes a still-portrait fallback.
+    Returns the output path on success (RunPod or fallback). Raises if both
+    paths fail (e.g., disk full during fallback ffmpeg).
     """
     try:
         with RunPodSession(image=image) as pod:
