@@ -16,7 +16,7 @@ from clipper.facedetect import detect_face, detect_face_in_clip
 from clipper.captions import generate_captions_file
 from clipper.transcribe_clip import transcribe_clip_words
 from clipper.oci_speech import transcribe_clip_oci
-from clipper.render import render_clip, detect_silence_boundaries
+from clipper.render import render_clip, detect_silence_periods
 from clipper.detect_captions import has_burned_captions
 
 
@@ -229,27 +229,48 @@ def main():
             f"({clip['endTime'] - clip['startTime']:.0f}s)",
         ]
 
-        extended_end = clip["endTime"] + 3.0
-        _, natural_end = detect_silence_boundaries(
-            video_path, clip["endTime"] - 1.0, extended_end
-        )
-        if natural_end > clip["endTime"]:
+        # One ffmpeg silencedetect call covers both "extend end to natural
+        # pause" and "trim leading/trailing silence".
+        orig_start, orig_end = clip["startTime"], clip["endTime"]
+        scan_end = orig_end + 3.0
+        periods = detect_silence_periods(video_path, orig_start, scan_end)
+
+        # Extend end to natural pause if a silence starts in [orig_end - 1, orig_end + 3]
+        natural_end = orig_end
+        for s, _e in periods:
+            if orig_end - 1.0 <= s <= scan_end and s > natural_end:
+                natural_end = s
+        if natural_end > orig_end:
             logs.append(
-                f"    Extended end: {clip['endTime']:.1f}s → {natural_end:.1f}s "
-                f"(+{natural_end - clip['endTime']:.1f}s to natural pause)"
+                f"    Extended end: {orig_end:.1f}s → {natural_end:.1f}s "
+                f"(+{natural_end - orig_end:.1f}s to natural pause)"
             )
             clip["endTime"] = natural_end
 
-        trimmed_start, trimmed_end = detect_silence_boundaries(
-            video_path, clip["startTime"], clip["endTime"]
-        )
-        if trimmed_start != clip["startTime"] or trimmed_end != clip["endTime"]:
-            logs.append(
-                f"    Auto-trimmed: {trimmed_start:.1f}s - {trimmed_end:.1f}s "
-                f"({trimmed_end - trimmed_start:.1f}s)"
-            )
-            clip["startTime"] = trimmed_start
-            clip["endTime"] = trimmed_end
+        # Trim leading silence
+        trimmed_start = clip["startTime"]
+        if periods:
+            first_s, first_e = periods[0]
+            if first_s - clip["startTime"] < 0.3 and first_e < clip["endTime"]:
+                trimmed_start = first_e
+
+        # Trim trailing silence (inside the now-possibly-extended clip)
+        trimmed_end = clip["endTime"]
+        trailing_candidates = [s for s, _ in periods if s < clip["endTime"]]
+        if trailing_candidates:
+            last_s = trailing_candidates[-1]
+            if last_s > clip["endTime"] - 2.0:
+                trimmed_end = last_s + 0.2
+
+        # Safety: don't trim aggressively
+        if trimmed_end - trimmed_start >= (clip["endTime"] - clip["startTime"]) * 0.5:
+            if trimmed_start != clip["startTime"] or trimmed_end != clip["endTime"]:
+                logs.append(
+                    f"    Auto-trimmed: {trimmed_start:.1f}s - {trimmed_end:.1f}s "
+                    f"({trimmed_end - trimmed_start:.1f}s)"
+                )
+                clip["startTime"] = trimmed_start
+                clip["endTime"] = trimmed_end
 
         if args.skip_face or skip_heavy:
             face_pos = {"found": False}

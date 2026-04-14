@@ -7,11 +7,16 @@ from typing import Dict, Optional, Tuple
 from platform_utils import get_video_encode_args
 
 
-def detect_silence_boundaries(
+def detect_silence_periods(
     input_path: str, start_time: float, end_time: float,
     silence_thresh: int = -35, min_silence_dur: float = 0.5,
-) -> Tuple[float, float]:
-    """Detect leading/trailing silence and return trimmed start/end times."""
+) -> list:
+    """Run ffmpeg silencedetect once and return absolute silence periods.
+
+    Returns a list of (silence_start_abs, silence_end_abs) tuples in the
+    input's timebase (i.e. caller-relative — the same coordinate system
+    that start_time/end_time live in).
+    """
     duration = end_time - start_time
     try:
         result = subprocess.run(
@@ -22,33 +27,48 @@ def detect_silence_boundaries(
             capture_output=True, text=True, timeout=30,
         )
         stderr = result.stderr
-
-        # Parse silence periods
         import re
-        starts = re.findall(r'silence_start: ([\d.]+)', stderr)
-        ends = re.findall(r'silence_end: ([\d.]+)', stderr)
-
-        # Trim leading silence (if silence starts at 0)
-        trimmed_start = start_time
-        if starts and float(starts[0]) < 0.3:
-            if ends:
-                trimmed_start = start_time + float(ends[0])
-
-        # Trim trailing silence (if silence extends to the end)
-        trimmed_end = end_time
-        if starts:
-            last_silence_start = float(starts[-1])
-            if last_silence_start > duration - 2.0:
-                trimmed_end = start_time + last_silence_start + 0.2
-
-        # Safety: don't trim too aggressively
-        if trimmed_end - trimmed_start < duration * 0.5:
-            return start_time, end_time
-
-        return trimmed_start, trimmed_end
-
+        starts = [float(s) for s in re.findall(r'silence_start: ([\d.]+)', stderr)]
+        ends = [float(s) for s in re.findall(r'silence_end: ([\d.]+)', stderr)]
+        # Pair them; if a trailing silence has no end, use the clip end.
+        periods = []
+        for i, s in enumerate(starts):
+            e = ends[i] if i < len(ends) else duration
+            periods.append((start_time + s, start_time + e))
+        return periods
     except Exception:
+        return []
+
+
+def detect_silence_boundaries(
+    input_path: str, start_time: float, end_time: float,
+    silence_thresh: int = -35, min_silence_dur: float = 0.5,
+) -> Tuple[float, float]:
+    """Detect leading/trailing silence and return trimmed start/end times."""
+    periods = detect_silence_periods(
+        input_path, start_time, end_time, silence_thresh, min_silence_dur
+    )
+    duration = end_time - start_time
+    if not periods:
         return start_time, end_time
+
+    # Trim leading silence (if silence starts at 0)
+    trimmed_start = start_time
+    first_s, first_e = periods[0]
+    if first_s - start_time < 0.3:
+        trimmed_start = first_e
+
+    # Trim trailing silence (if silence extends to the end)
+    trimmed_end = end_time
+    last_s, _last_e = periods[-1]
+    if last_s - start_time > duration - 2.0:
+        trimmed_end = last_s + 0.2
+
+    # Safety: don't trim too aggressively
+    if trimmed_end - trimmed_start < duration * 0.5:
+        return start_time, end_time
+
+    return trimmed_start, trimmed_end
 
 
 def render_clip(

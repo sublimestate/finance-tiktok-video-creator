@@ -4,16 +4,20 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import wave
 from pathlib import Path
 from typing import List, Dict
 
 from vosk import Model, KaldiRecognizer
 
-# Cache vosk models — large for clip captions, small for full-video transcription
+# Cache vosk models — large for clip captions, small for full-video transcription.
+# The lock prevents a race when multiple parallel prep threads hit a cold cache
+# and each try to load the 1.8GB large model simultaneously.
 _LARGE_MODEL_PATH = str(Path(__file__).parent.parent / "data" / "models" / "vosk-model-en-us-0.22")
 _SMALL_MODEL_PATH = str(Path(__file__).parent.parent / "data" / "models" / "vosk-model-small-en-us-0.15")
 _models = {}
+_model_lock = threading.Lock()
 
 
 def _get_model(size: str = "large") -> Model:
@@ -21,14 +25,19 @@ def _get_model(size: str = "large") -> Model:
     if size in _models:
         return _models[size]
 
-    if size == "large" and os.path.exists(_LARGE_MODEL_PATH):
-        _models[size] = Model(_LARGE_MODEL_PATH)
-    elif os.path.exists(_SMALL_MODEL_PATH):
-        _models[size] = Model(_SMALL_MODEL_PATH)
-    else:
-        return None
+    with _model_lock:
+        # Re-check under the lock in case another thread loaded it while we waited
+        if size in _models:
+            return _models[size]
 
-    return _models[size]
+        if size == "large" and os.path.exists(_LARGE_MODEL_PATH):
+            _models[size] = Model(_LARGE_MODEL_PATH)
+        elif os.path.exists(_SMALL_MODEL_PATH):
+            _models[size] = Model(_SMALL_MODEL_PATH)
+        else:
+            return None
+
+        return _models[size]
 
 
 def transcribe_clip(video_path: str, start_time: float, end_time: float) -> List[Dict]:
