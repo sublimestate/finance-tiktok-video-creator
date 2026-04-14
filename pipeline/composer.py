@@ -3,7 +3,7 @@
 import subprocess
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pipeline.parser import Scene
 from platform_utils import get_video_encode_args, get_video_encode_args_simple
@@ -84,8 +84,23 @@ def _create_ken_burns(image_path: str, duration: float, output_path: str,
 def build_background(scenes: List[Scene], tmp_dir: str,
                      width: int = 1080, height: int = 1920,
                      fps: int = 30, scene_padding: float = 0.3,
-                     hook_duration: float = 0.0) -> str:
-    """Build the concatenated background video from scene assets."""
+                     hook_duration: float = 0.0,
+                     cutaway_overrides: Optional[Dict[int, str]] = None) -> str:
+    """Build the concatenated background video from scene assets.
+
+    Args:
+        scenes: List of Scene objects with asset_path pre-fetched.
+        tmp_dir: Temporary directory for intermediate files.
+        width: Output video width in pixels (default 1080).
+        height: Output video height in pixels (default 1920).
+        fps: Output frame rate (default 30).
+        scene_padding: Seconds of extra duration added to each scene (default 0.3).
+        hook_duration: Duration of the hook lead-in segment in seconds (default 0.0).
+        cutaway_overrides: Optional mapping of scene.index → pre-rendered mp4 path.
+            When a scene's index is present in this dict, the provided mp4 is used
+            as the source for that scene's segment instead of the normal stock-asset
+            path (scale/crop for videos, ken-burns for images, solid color fallback).
+    """
     bg_dir = Path(tmp_dir) / "background"
     bg_dir.mkdir(parents=True, exist_ok=True)
 
@@ -119,6 +134,25 @@ def build_background(scenes: List[Scene], tmp_dir: str,
     for scene in scenes:
         duration = (scene.audio_duration or scene.duration or 3.0) + scene_padding
         seg_path = str(bg_dir / f"scene_{scene.index:03d}.mp4")
+
+        cutaway = (cutaway_overrides or {}).get(scene.index)
+        if cutaway:
+            # Cutaway override: use the provided pre-rendered mp4 as the
+            # source for this scene. Re-encode through the same scale/crop
+            # path as stock videos so it integrates with the concat.
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", cutaway,
+                 "-vf", (
+                     f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+                     f"crop={width}:{height},setsar=1"
+                 ),
+                 "-t", str(duration),
+                 *get_video_encode_args_simple(),
+                 "-r", str(fps), "-an", seg_path],
+                capture_output=True,
+            )
+            segment_paths.append(seg_path)
+            continue
 
         if scene.visuals.type in ("stock_video", "news_video") and scene.asset_path:
             # Scale and pad stock video to exact dimensions and duration
