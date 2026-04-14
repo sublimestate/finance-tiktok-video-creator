@@ -71,9 +71,11 @@ def render_clip(
 
     filters = []
 
-    # Blurred background + centered video (preserves full frame, no cropping)
+    # Blurred background + centered video (preserves full frame, no cropping).
+    # Blur at 1/4 resolution then upscale — visually identical, ~4x fewer pixels
+    # through the expensive boxblur filter.
     filters.append(
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5[bg]"
+        "[0:v]scale=540:960:force_original_aspect_ratio=increase,crop=540:960,boxblur=12:2,scale=1080:1920[bg]"
     )
     filters.append(
         "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[fg]"
