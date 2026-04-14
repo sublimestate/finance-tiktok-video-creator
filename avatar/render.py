@@ -32,7 +32,7 @@ def render_still_portrait_fallback(
 ) -> Path:
     """Build a 1080x1920 video showing the portrait centered with the audio.
 
-    Used when RunPod is unavailable, render times out, or the LivePortrait
+    Used when RunPod is unavailable, render times out, or the MuseTalk
     output is unusable. The video still ships — just without animation.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)

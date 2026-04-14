@@ -45,7 +45,7 @@ DATA_DIR = PROJECT_DIR / "data"
 AVATAR_DIR = DATA_DIR / "avatar"
 OUTPUT_DIR = PROJECT_DIR / "output" / "host"
 DEFAULT_IMAGE = os.environ.get(
-    "RUNPOD_IMAGE", "<dockerhub-user>/liveportrait-runpod:0.1.0"
+    "RUNPOD_IMAGE", "<dockerhub-user>/musetalk-runpod:0.1.0"
 )
 
 
@@ -94,7 +94,7 @@ def main() -> int:
     parser.add_argument("headline", nargs="+", help="One-line news headline")
     parser.add_argument("--config", "-c", default="config.yaml")
     parser.add_argument("--image", default=DEFAULT_IMAGE,
-                        help="LivePortrait worker image to use on RunPod")
+                        help="MuseTalk worker image to use on RunPod")
     parser.add_argument("--no-runpod", action="store_true",
                         help="Skip RunPod entirely; all host beats use still-portrait fallback")
     args = parser.parse_args()

@@ -32,7 +32,7 @@ class RunPodSession:
 
     Always use as a context manager:
 
-        with RunPodSession(image="liveportrait-runpod:0.1.0") as pod:
+        with RunPodSession(image="musetalk-runpod:0.1.0") as pod:
             cutaways = pod.render_batch(jobs)
     """
 
@@ -105,7 +105,7 @@ class RunPodSession:
     ) -> List[Path]:
         """Render a list of (portrait, audio, output) jobs in serial on this pod.
 
-        Serial keeps the inner Flask service simple — LivePortrait is
+        Serial keeps the inner Flask service simple — MuseTalk is
         GPU-bound so concurrent requests would just queue at the GPU anyway.
         """
         results: List[Path] = []
@@ -154,7 +154,7 @@ class RunPodSession:
         raise RunPodError(f"pod {self.pod_id} did not boot within {POD_BOOT_TIMEOUT_SEC}s")
 
     def _wait_for_inner_healthy(self) -> None:
-        """Poll the pod's inner /healthz until the LivePortrait model is loaded.
+        """Poll the pod's inner /healthz until the MuseTalk worker is loaded.
 
         Critical: RunPod's API is eventually consistent. The pod can report
         RUNNING before the inner service is actually accepting requests.

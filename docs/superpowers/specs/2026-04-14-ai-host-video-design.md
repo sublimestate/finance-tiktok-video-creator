@@ -4,6 +4,18 @@
 **Status:** Approved for implementation planning
 **Goal:** Add a new video format that features a recurring AI-generated host appearing as cutaways throughout the existing collage style, building brand identity and on-screen engagement.
 
+---
+
+> **Post-implementation addendum (2026-04-14): MuseTalk replaces LivePortrait.**
+>
+> During validation on a Lightning.ai Tesla T4 — before any Docker image was built or RunPod cost was incurred — we discovered that LivePortrait (`KwaiVGI/LivePortrait`) is a **video-driven** expression-transfer model, not audio-driven. Its `-d/--driving` argument takes a video or `.pkl`, not an audio WAV. The entire `(portrait, audio) → talking head` assumption this spec was built on was wrong.
+>
+> The pivot: **MuseTalk v1.5** (`TMElyralab/MuseTalk`). It is genuinely audio-driven, accepts still-image sources, fits in 16 GB VRAM on a T4, and runs ~2 min for 8 s audio (~15× real-time). The trade-off vs the original spec: MuseTalk keeps head pose static and only animates the mouth region. For the 3–5 s cutaways this spec describes, that's acceptable; for richer head motion EchoMimicV2 or Hallo2 are drop-in replacements that need an A100.
+>
+> **What's still accurate in this spec:** the architecture, the fail-soft chain, the RunPod-pod-per-video cost model, the one-time character portrait via Flux on Replicate, and the cutaway scene structure. Only the inner GPU model changed.
+>
+> **What's stale in this spec:** references to "LivePortrait" in the RunPod Pods section should be read as "MuseTalk." The Docker image name moves from `liveportrait-runpod` to `musetalk-runpod`. The per-cutaway render time is slightly higher (~2 min for 8 s audio on T4 vs the estimated 20–40 s for LivePortrait), but the cost-per-video math holds because MuseTalk's T4 fit makes the hourly rate cheaper than an A10.
+
 ## Why
 
 The existing pipelines (`quick_video.py`, `clip_video.py`) produce TikTok finance videos as a Pexels stock-footage collage with TTS narration and text overlays. There is no recurring face — every video looks anonymous. A recurring AI-generated host solves two related problems:

@@ -6,9 +6,17 @@
 
 **Architecture:** New `avatar/` module with three focused files (character config, RunPod client, high-level renderer) plus a Docker worker image. New `setup_host.py` one-shot generates the recurring portrait via Replicate Flux. New `host_video.py` CLI orchestrates research → script → TTS → parallel pod boot → cutaway render → composer assembly. The existing `pipeline/composer.py` gets one new optional parameter for cutaway scene overrides. No changes to `quick_video.py` or `clip_video.py`.
 
-**Tech Stack:** Python 3.8, `replicate` SDK (Flux portrait), `requests` (RunPod REST API + inner pod service), `responses` (HTTP mocking in tests), `pytest`, `Pillow` (already installed, used for portrait tiling), `pyyaml` (already in deps), `ffmpeg` (already installed, for fallback still-portrait video), Docker (worker image), LivePortrait + RunPod Pods (A10 GPU).
+**Tech Stack:** Python 3.8, `replicate` SDK (Flux portrait), `requests` (RunPod REST API + inner pod service), `responses` (HTTP mocking in tests), `pytest`, `Pillow` (already installed, used for portrait tiling), `pyyaml` (already in deps), `ffmpeg` (already installed, for fallback still-portrait video), Docker (worker image), MuseTalk v1.5 + RunPod Pods (A10 GPU).
 
 **Spec:** `docs/superpowers/specs/2026-04-14-ai-host-video-design.md`
+
+---
+
+> **Post-implementation addendum (2026-04-14): MuseTalk replaces LivePortrait.**
+>
+> Task 11's validation on a Tesla T4 found that LivePortrait is a video-driven expression-transfer model, not audio-driven. The whole `(portrait, audio) → talking head` assumption was wrong. We pivoted to MuseTalk v1.5 before any Docker image was built. Task 4 (the Docker image) and the `avatar/worker/server.py` implementation from Task 5 were rewritten for MuseTalk in commit `ee27402`. The task structure in this plan is otherwise intact — the `avatar/` module boundary, RunPodSession, render_cutaway, composer extension, and host_video.py were all model-agnostic by design.
+>
+> Tasks 1, 2, 3, 5, 6, 7, 8, 9, 10 are unchanged. Task 4's Dockerfile + server.py now install MuseTalk + mmcv/mmpose + its weight set. Task 11's smoke test is the validation that caught the LivePortrait issue.
 
 ---
 
