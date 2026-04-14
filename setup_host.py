@@ -6,6 +6,7 @@ Run once (or with --regenerate) before using host_video.py.
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 from typing import List
 
@@ -64,16 +65,27 @@ def generate_candidates(prompt: str, out_dir: Path) -> List[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: List[Path] = []
     for i in range(NUM_CANDIDATES):
-        output = replicate.run(
-            "black-forest-labs/flux-schnell",
-            input={
-                "prompt": prompt,
-                "aspect_ratio": "1:1",
-                "num_outputs": 1,
-                "output_format": "png",
-                "output_quality": 95,
-            },
-        )
+        last_exc = None
+        for attempt, delay in enumerate([0, 5, 10]):
+            if delay:
+                print(f"  retrying candidate {i+1} after {delay}s (attempt {attempt+1})...")
+                time.sleep(delay)
+            try:
+                output = replicate.run(
+                    "black-forest-labs/flux-schnell",
+                    input={
+                        "prompt": prompt,
+                        "aspect_ratio": "1:1",
+                        "num_outputs": 1,
+                        "output_format": "png",
+                        "output_quality": 95,
+                    },
+                )
+                break
+            except Exception as exc:
+                last_exc = exc
+        else:
+            raise RuntimeError(f"replicate failed after 3 attempts for candidate {i+1}: {last_exc}")
         # Replicate returns a list of FileOutput objects (or URL strings for older models)
         url = output[0] if isinstance(output, list) else output
         url_str = str(url)
