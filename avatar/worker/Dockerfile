@@ -10,11 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # MuseTalk pins to Python 3.10 (mmcv/chumpy don't build on 3.12).
-# Install miniconda so we get a clean 3.10 env without fighting apt.
-RUN curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh && \
-    bash /tmp/miniconda.sh -b -p /opt/conda && \
-    rm /tmp/miniconda.sh && \
-    /opt/conda/bin/conda install -n base -c conda-forge python=3.10 -y && \
+# Install miniforge (conda-forge-only, no Anaconda ToS issue) so we get
+# a clean 3.10 env without fighting apt or recent conda ToS prompts.
+RUN curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o /tmp/miniforge.sh && \
+    bash /tmp/miniforge.sh -b -p /opt/conda && \
+    rm /tmp/miniforge.sh && \
+    /opt/conda/bin/conda install -n base python=3.10 -y && \
     /opt/conda/bin/conda clean -afy
 
 # Clone MuseTalk (no pinned commit — repo is stable, validated against
