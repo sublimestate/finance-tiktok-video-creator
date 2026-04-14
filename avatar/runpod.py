@@ -7,7 +7,7 @@ import os
 import time
 from datetime import date
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import requests
 
@@ -41,16 +41,27 @@ class RunPodSession:
         image: str,
         api_key: Optional[str] = None,
         gpu_type: str = DEFAULT_GPU_TYPE,
+        worker_auth_token: Optional[str] = None,
     ):
         self.image = image
         self.gpu_type = gpu_type
         self.api_key = api_key or os.environ.get("RUNPOD_API_KEY", "")
         if not self.api_key:
             raise RunPodError("RUNPOD_API_KEY not set")
+        self.worker_auth_token = (
+            worker_auth_token
+            if worker_auth_token is not None
+            else (os.environ.get("WORKER_AUTH_TOKEN", "").strip() or None)
+        )
         self.pod_id: Optional[str] = None
         self.inner_base: Optional[str] = None
         self._session = requests.Session()
         self._session.headers["Authorization"] = f"Bearer {self.api_key}"
+
+    def _inner_headers(self) -> Dict[str, str]:
+        if self.worker_auth_token:
+            return {"X-Worker-Token": self.worker_auth_token}
+        return {}
 
     # --- Lifecycle ---
 
@@ -81,6 +92,7 @@ class RunPodSession:
             resp = requests.post(
                 f"{self.inner_base}/render",
                 files={"portrait": fp, "audio": fa},
+                headers=self._inner_headers(),
                 timeout=RENDER_TIMEOUT_SEC,
             )
         if resp.status_code != 200:
@@ -150,7 +162,7 @@ class RunPodSession:
         deadline = time.monotonic() + POD_HEALTH_TIMEOUT_SEC
         while time.monotonic() < deadline:
             try:
-                resp = requests.get(f"{self.inner_base}/healthz", timeout=10)
+                resp = requests.get(f"{self.inner_base}/healthz", headers=self._inner_headers(), timeout=10)
                 if resp.status_code == 200:
                     return
             except requests.RequestException:
@@ -175,7 +187,9 @@ class RunPodSession:
             "RUNPOD_BILLING_LOG", "data/avatar/billing.log"
         )
         try:
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            log_dir = os.path.dirname(log_path)
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
             with open(log_path, "a") as f:
                 f.write(f"{date.today().isoformat()}\t{elapsed:.1f}\t{cost:.4f}\n")
         except OSError:

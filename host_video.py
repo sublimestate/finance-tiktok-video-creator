@@ -58,14 +58,14 @@ def load_config(config_path: str = "config.yaml") -> dict:
 
 
 def pair_host_beats_with_audio(scenes, host_indices: List[int]) -> List[Tuple[int, Path]]:
-    """Return [(scene_index, audio_path), ...] for each host beat scene.
+    """Return [(scene_index, audio_path), ...] for host beat scenes that have audio.
 
-    Used to feed render_cutaways_batch with the per-scene audio that
-    was already produced by the TTS step.
+    Scenes whose TTS failed (audio_path is None) are skipped so they fall
+    through to the composer's normal collage rendering path.
     """
     pairs: List[Tuple[int, Path]] = []
     for scene in scenes:
-        if scene.index in host_indices:
+        if scene.index in host_indices and scene.audio_path:
             pairs.append((scene.index, Path(scene.audio_path)))
     return pairs
 
@@ -195,18 +195,23 @@ def main() -> int:
         audio_path = str(Path(tmp_dir) / "audio" / f"scene_{scene.index:03d}.mp3")
         Path(audio_path).parent.mkdir(parents=True, exist_ok=True)
         print(f"  Scene {scene.index}: generating audio...")
-        duration, word_timings = generate_tts(
-            api_key=elevenlabs_key,
-            text=scene.narration,
-            output_path=audio_path,
-            voice_name=script.voice or character.voice,
-            model=tts_cfg.get("model", "eleven_multilingual_v2"),
-            stability=tts_cfg.get("stability", 0.5),
-            similarity_boost=tts_cfg.get("similarity_boost", 0.75),
-            voice_id_cache=voice_cache,
-            fish_audio_api_key=fish_audio_key or None,
-            fish_audio_reference_id=fish_audio_ref,
-        )
+        try:
+            duration, word_timings = generate_tts(
+                api_key=elevenlabs_key,
+                text=scene.narration,
+                output_path=audio_path,
+                voice_name=script.voice or character.voice,
+                model=tts_cfg.get("model", "eleven_multilingual_v2"),
+                stability=tts_cfg.get("stability", 0.5),
+                similarity_boost=tts_cfg.get("similarity_boost", 0.75),
+                voice_id_cache=voice_cache,
+                fish_audio_api_key=fish_audio_key or None,
+                fish_audio_reference_id=fish_audio_ref,
+            )
+        except Exception as tts_err:
+            print(f"  Warning: TTS failed for scene {scene.index}: {tts_err}; scene will use collage fallback")
+            scene.audio_path = None
+            continue
         scene.audio_path = audio_path
         scene.audio_duration = duration
         scene.word_timings = [
@@ -258,7 +263,7 @@ def main() -> int:
     # 9. Build background with cutaway overrides
     print("=" * 50)
     print("STAGE 7: Compositing final video...")
-    cutaway_overrides = build_cutaway_override_map(indices, cutaway_paths)
+    cutaway_overrides = build_cutaway_override_map([idx for (idx, _) in host_pairs], cutaway_paths)
     hook_duration = script.hook.duration if script.hook else 0.0
     bg_path = build_background(
         script.scenes, tmp_dir, width, height, fps, scene_padding,
