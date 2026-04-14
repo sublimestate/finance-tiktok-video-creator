@@ -11,6 +11,7 @@ import io
 import os
 import subprocess
 import tempfile
+from functools import wraps
 from pathlib import Path
 
 from flask import Flask, request, send_file
@@ -19,13 +20,30 @@ app = Flask(__name__)
 LIVEPORTRAIT_DIR = Path(os.environ.get("LIVEPORTRAIT_DIR", "/opt/LivePortrait"))
 MODEL_LOADED = False
 
+# Optional shared-secret auth. Set WORKER_AUTH_TOKEN in the RunPod pod env to
+# enable. When unset the check is skipped so local docker-run dev flow works.
+_AUTH_TOKEN = os.environ.get("WORKER_AUTH_TOKEN", "").strip()
+
+
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if _AUTH_TOKEN:
+            token = request.headers.get("X-Worker-Token", "")
+            if token != _AUTH_TOKEN:
+                return ("unauthorized", 401)
+        return f(*args, **kwargs)
+    return decorated
+
 
 @app.route("/healthz", methods=["GET"])
+@require_auth
 def healthz():
     return ("ok", 200) if MODEL_LOADED else ("warming", 503)
 
 
 @app.route("/render", methods=["POST"])
+@require_auth
 def render():
     if "portrait" not in request.files or "audio" not in request.files:
         return ("missing portrait or audio", 400)
@@ -52,9 +70,13 @@ def render():
             "--driving_audio",
             "--no-flag-pasteback",
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=False, timeout=300)
+        except subprocess.TimeoutExpired:
+            return ("liveportrait timed out after 300s", 504)
         if proc.returncode != 0 or not out_path.exists():
-            return (f"liveportrait failed: {proc.stderr[-500:]}", 500)
+            stderr_text = proc.stderr.decode('utf-8', errors='replace') if proc.stderr else ''
+            return (f"liveportrait failed: {stderr_text[-2000:]}", 500)
 
         video_bytes = out_path.read_bytes()
 
