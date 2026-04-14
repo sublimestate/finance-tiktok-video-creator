@@ -199,7 +199,11 @@ def rewrite_clip_titles_oci(
     compartment_id: str = "",
     region: str = "us-ashburn-1",
 ) -> List[Dict]:
-    """Second pass: rewrite clip titles using the actual transcript content."""
+    """Second pass: rewrite clip titles using the actual transcript content.
+
+    Runs one Grok call per clip in parallel — each call is ~1-3s, so
+    serial looping burned N × latency on the critical path.
+    """
     if not HAS_OCI:
         return clips
 
@@ -221,14 +225,13 @@ def rewrite_clip_titles_oci(
             service_endpoint=f"https://inference.generativeai.{region}.oci.oraclecloud.com",
         )
 
-        for clip in clips:
-            # Get transcript text for this clip
+        def _rewrite_one(clip):
             clip_text = " ".join(
                 seg["text"] for seg in segments
                 if seg["start"] >= clip["startTime"] - 0.5 and seg["start"] < clip["endTime"]
             )
             if not clip_text:
-                continue
+                return
 
             prompt = REWRITE_PROMPT.format(
                 transcript=clip_text[:2000],
@@ -253,10 +256,9 @@ def rewrite_clip_titles_oci(
                 ),
             )
 
-            response = client.chat(chat_detail)
-            text = response.data.chat_response.choices[0].message.content[0].text
-
             try:
+                response = client.chat(chat_detail)
+                text = response.data.chat_response.choices[0].message.content[0].text
                 import re
                 cleaned = re.sub(r'^```(?:json)?\s*', '', text.strip())
                 cleaned = re.sub(r'\s*```$', '', cleaned).strip()
@@ -265,8 +267,12 @@ def rewrite_clip_titles_oci(
                     clip["title"] = parsed["title"][:80]
                 if parsed.get("description"):
                     clip["description"] = parsed["description"][:200]
-            except (json.JSONDecodeError, KeyError):
-                pass  # Keep original title/description
+            except Exception:
+                pass  # Keep original title/description on any failure
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(len(clips), 8)) as ex:
+            list(ex.map(_rewrite_one, clips))
 
     except Exception:
         pass  # If rewrite fails, keep originals

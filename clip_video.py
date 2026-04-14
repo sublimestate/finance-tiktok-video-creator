@@ -314,33 +314,31 @@ def main():
         }
         return i, job, logs
 
-    prep_threads = min(len(clips), 8)
-    print(f"\n  Preparing {len(clips)} clips in parallel ({prep_threads} threads)...")
-    with ThreadPoolExecutor(max_workers=prep_threads) as prep_executor:
-        prep_results = list(prep_executor.map(_prepare_clip, list(enumerate(clips))))
-
-    prep_results.sort(key=lambda r: r[0])
-    clip_jobs = []
-    for _i, job, logs in prep_results:
-        for line in logs:
-            print(line)
-        clip_jobs.append(job)
-    max_threads = min(get_thread_count(), len(clip_jobs))
-    print(f"\n  Rendering {len(clip_jobs)} clips in parallel ({max_threads} threads)...")
-
-    def _render_one(job):
+    # Pipeline prep → render in one executor: each worker does prep then
+    # render for a single clip, so fast clips start encoding while slow ones
+    # are still transcribing.
+    def _prepare_and_render(args_tuple):
+        i, job, logs = _prepare_clip(args_tuple)
+        # Print the prep log block atomically (single print = single write)
+        print("\n".join(logs))
         render_clip(**job)
-        return job["output_path"]
+        path = job["output_path"]
+        file_size = os.path.getsize(path) / (1024 * 1024)
+        print(f"    ✓ Clip {i+1} → {path} ({file_size:.1f} MB)")
+        return i, path
 
+    max_threads = min(get_thread_count(), len(clips))
+    print(f"\n  Prep + render pipeline for {len(clips)} clips ({max_threads} threads)...")
     output_paths = []
     with ThreadPoolExecutor(max_workers=max_threads) as executor:
-        futures = {executor.submit(_render_one, job): i for i, job in enumerate(clip_jobs)}
+        futures = {
+            executor.submit(_prepare_and_render, (i, clip)): i
+            for i, clip in enumerate(clips)
+        }
         for future in as_completed(futures):
             idx = futures[future]
             try:
-                path = future.result()
-                file_size = os.path.getsize(path) / (1024 * 1024)
-                print(f"    ✓ Clip {idx+1} → {path} ({file_size:.1f} MB)")
+                _, path = future.result()
                 output_paths.append(path)
             except Exception as e:
                 print(f"    ✗ Clip {idx+1} failed: {e}")
