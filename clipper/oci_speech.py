@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import time
+import uuid
 from pathlib import Path
 from typing import List, Dict, Optional
 
@@ -58,8 +59,9 @@ def transcribe_clip_oci(
             capture_output=True, timeout=max(60, int(duration / 5)),
         )
 
-        # Upload audio to OCI Object Storage
-        obj_name = f"temp_speech_{os.getpid()}_{int(time.time())}.wav"
+        # Upload audio to OCI Object Storage. uuid suffix avoids collisions
+        # when multiple parallel prep threads call this in the same second.
+        obj_name = f"temp_speech_{os.getpid()}_{int(time.time())}_{uuid.uuid4().hex[:8]}.wav"
         with open(tmp_wav.name, "rb") as f:
             os_client.put_object(NAMESPACE, BUCKET, obj_name, f)
 
@@ -85,7 +87,7 @@ def transcribe_clip_oci(
             output_location=oci.ai_speech.models.OutputLocation(
                 namespace_name=NAMESPACE,
                 bucket_name=BUCKET,
-                prefix=f"speech_output/{int(time.time())}/",
+                prefix=f"speech_output/{int(time.time())}_{uuid.uuid4().hex[:8]}/",
             ),
         )
 

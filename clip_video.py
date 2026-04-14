@@ -212,68 +212,75 @@ def main():
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 
-    # Prepare all clips first (captions, face detection) — sequential due to vosk model
-    clip_jobs = []
-    for i, clip in enumerate(clips):
-        clip_id = str(uuid.uuid4())[:8]
-        print(f"\n  Preparing clip {i+1}/{len(clips)}: {clip['title']}")
-        print(f"    Time: {clip['startTime']:.0f}s - {clip['endTime']:.0f}s "
-              f"({clip['endTime'] - clip['startTime']:.0f}s)")
+    # Prepare clips in parallel. All per-clip work — silence detection
+    # (ffmpeg subprocess), face detection (cv2), OCI Speech (network), vosk
+    # (C ext) — releases the GIL, so threads give real speedup. OCI Speech
+    # dominates at ~50s per call, so parallelism effectively shrinks prep
+    # time to the single slowest clip.
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from platform_utils import get_thread_count
 
-        # Extend end point by 3s buffer, then find natural silence to end on
+    def _prepare_clip(args_tuple):
+        i, clip = args_tuple
+        clip_id = str(uuid.uuid4())[:8]
+        logs = [
+            f"\n  Preparing clip {i+1}/{len(clips)}: {clip['title']}",
+            f"    Time: {clip['startTime']:.0f}s - {clip['endTime']:.0f}s "
+            f"({clip['endTime'] - clip['startTime']:.0f}s)",
+        ]
+
         extended_end = clip["endTime"] + 3.0
         _, natural_end = detect_silence_boundaries(
             video_path, clip["endTime"] - 1.0, extended_end
         )
         if natural_end > clip["endTime"]:
-            print(f"    Extended end: {clip['endTime']:.1f}s → {natural_end:.1f}s "
-                  f"(+{natural_end - clip['endTime']:.1f}s to natural pause)")
+            logs.append(
+                f"    Extended end: {clip['endTime']:.1f}s → {natural_end:.1f}s "
+                f"(+{natural_end - clip['endTime']:.1f}s to natural pause)"
+            )
             clip["endTime"] = natural_end
 
-        # Auto-trim leading silence
         trimmed_start, trimmed_end = detect_silence_boundaries(
             video_path, clip["startTime"], clip["endTime"]
         )
         if trimmed_start != clip["startTime"] or trimmed_end != clip["endTime"]:
-            print(f"    Auto-trimmed: {trimmed_start:.1f}s - {trimmed_end:.1f}s "
-                  f"({trimmed_end - trimmed_start:.1f}s)")
+            logs.append(
+                f"    Auto-trimmed: {trimmed_start:.1f}s - {trimmed_end:.1f}s "
+                f"({trimmed_end - trimmed_start:.1f}s)"
+            )
             clip["startTime"] = trimmed_start
             clip["endTime"] = trimmed_end
 
-        # Per-clip face detection (skip in draft mode)
         if args.skip_face or skip_heavy:
             face_pos = {"found": False}
         else:
-            print("    Detecting face...")
+            logs.append("    Detecting face...")
             face_pos = detect_face_in_clip(video_path, clip["startTime"], clip["endTime"])
 
-        # Captions — check per-clip for burned-in captions, skip if detected
         captions_path = None
         clip_has_captions = False
         if not args.no_captions:
             clip_has_captions = has_burned_captions(video_path, clip["startTime"])
             if clip_has_captions:
-                print("    ⚠ Burned-in captions detected — skipping overlay")
+                logs.append("    ⚠ Burned-in captions detected — skipping overlay")
         if not args.no_captions and not clip_has_captions:
-            print("    Generating captions...")
+            logs.append("    Generating captions...")
             word_timestamps = None
             if not skip_heavy:
-                # Try OCI Speech AI first (cloud, fast, accurate)
                 word_timestamps = transcribe_clip_oci(video_path, clip["startTime"], clip["endTime"])
                 if word_timestamps:
-                    print(f"    → OCI Speech: {len(word_timestamps)} words")
+                    logs.append(f"    → OCI Speech: {len(word_timestamps)} words")
                 else:
-                    # Fall back to local Vosk
                     word_timestamps = transcribe_clip_words(video_path, clip["startTime"], clip["endTime"])
                     if word_timestamps:
-                        print(f"    → Vosk: {len(word_timestamps)} words")
+                        logs.append(f"    → Vosk: {len(word_timestamps)} words")
             captions_path = generate_captions_file(
                 clip_id, segments, clip["startTime"], clip["endTime"], captions_dir,
                 vosk_words=word_timestamps,
             )
 
         output_path = str(Path(output_dir) / f"{clip_id}_{i+1}.mp4")
-        clip_jobs.append({
+        job = {
             "input_path": video_path,
             "output_path": output_path,
             "start_time": clip["startTime"],
@@ -283,11 +290,20 @@ def main():
             "hook_quote": clip.get("hook_quote"),
             "face_position": face_pos,
             "draft": is_draft,
-        })
+        }
+        return i, job, logs
 
-    # Render all clips in parallel
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    from platform_utils import get_thread_count
+    prep_threads = min(len(clips), 8)
+    print(f"\n  Preparing {len(clips)} clips in parallel ({prep_threads} threads)...")
+    with ThreadPoolExecutor(max_workers=prep_threads) as prep_executor:
+        prep_results = list(prep_executor.map(_prepare_clip, list(enumerate(clips))))
+
+    prep_results.sort(key=lambda r: r[0])
+    clip_jobs = []
+    for _i, job, logs in prep_results:
+        for line in logs:
+            print(line)
+        clip_jobs.append(job)
     max_threads = min(get_thread_count(), len(clip_jobs))
     print(f"\n  Rendering {len(clip_jobs)} clips in parallel ({max_threads} threads)...")
 
