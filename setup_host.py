@@ -4,6 +4,7 @@
 Run once (or with --regenerate) before using host_video.py.
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -34,7 +35,10 @@ def build_flux_prompt(name: str = DEFAULT_NAME) -> str:
 
 
 def tile_candidates_2x2(candidate_paths: List[Path], output_path: Path) -> Path:
-    """Tile 4 square portraits into a 2x2 preview image at half resolution."""
+    """Tile 4 square portraits into a 2x2 preview image at full resolution.
+
+    Output dimensions are (2*side, 2*side) where side is the input image side length.
+    """
     if len(candidate_paths) != 4:
         raise ValueError(f"expected 4 candidates, got {len(candidate_paths)}")
     images = [Image.open(p).convert("RGB") for p in candidate_paths]
@@ -96,6 +100,13 @@ def main() -> int:
         print(f"Portrait already exists at {AVATAR_DIR / 'portrait.png'}")
         print("Pass --regenerate to overwrite (the previous portrait is backed up to portrait.png.bak)")
         return 0
+
+    # Token check — only runs when we actually need to call Replicate
+    if not os.environ.get("REPLICATE_API_TOKEN"):
+        print("Error: REPLICATE_API_TOKEN environment variable not set.")
+        print("Get a token from https://replicate.com/account/api-tokens")
+        print("Then run: export REPLICATE_API_TOKEN=<your-token>")
+        return 1
 
     prompt = args.prompt or build_flux_prompt(args.name)
     print(f"Prompt: {prompt}\n")
