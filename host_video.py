@@ -44,9 +44,6 @@ PROJECT_DIR = Path(__file__).parent.resolve()
 DATA_DIR = PROJECT_DIR / "data"
 AVATAR_DIR = DATA_DIR / "avatar"
 OUTPUT_DIR = PROJECT_DIR / "output" / "host"
-DEFAULT_IMAGE = os.environ.get(
-    "RUNPOD_IMAGE", "<dockerhub-user>/musetalk-runpod:0.1.0"
-)
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -93,10 +90,8 @@ def main() -> int:
     )
     parser.add_argument("headline", nargs="+", help="One-line news headline")
     parser.add_argument("--config", "-c", default="config.yaml")
-    parser.add_argument("--image", default=DEFAULT_IMAGE,
-                        help="MuseTalk worker image to use on RunPod")
-    parser.add_argument("--no-runpod", action="store_true",
-                        help="Skip RunPod entirely; all host beats use still-portrait fallback")
+    parser.add_argument("--no-gpu", action="store_true",
+                        help="Skip Modal GPU renders; all host beats use still-portrait fallback")
     args = parser.parse_args()
 
     headline = " ".join(args.headline)
@@ -229,7 +224,7 @@ def main() -> int:
         (audio_path, cutaway_dir / f"cutaway_{idx}.mp4")
         for idx, audio_path in host_pairs
     ]
-    if args.no_runpod:
+    if args.no_gpu:
         cutaway_paths: List[Path] = []
         for audio_path, output_path in cutaway_jobs:
             cutaway_paths.append(
@@ -239,7 +234,6 @@ def main() -> int:
         cutaway_paths = render_cutaways_batch(
             portrait_path=character.portrait_path,
             jobs=cutaway_jobs,
-            image=args.image,
         )
 
     # 8. Render overlays via Remotion (existing pipeline)
