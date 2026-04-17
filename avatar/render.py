@@ -58,21 +58,37 @@ def render_still_portrait_fallback(
     return output_path
 
 
+MODAL_PYTHON = os.environ.get("MODAL_PYTHON", "python3.9")
+
+
 def _modal_render(portrait_path: Path, audio_path: Path, output_path: Path) -> Path:
     """Call EchoMimic via the deployed Modal function.
 
-    Reads portrait + audio as bytes, sends to Modal, writes the returned
-    mp4 bytes to output_path. Modal handles GPU provisioning, scaling,
-    and teardown — no RunPod lifecycle code needed.
+    Uses python3.9 subprocess because the project runs on Python 3.8 but
+    Modal's SDK requires 3.9+. The subprocess reads portrait + audio,
+    calls the deployed function via modal.Function.from_name().remote(),
+    and writes the result to output_path.
     """
-    import modal
-
-    render_fn = modal.Function.from_name(MODAL_APP_NAME, MODAL_FUNCTION_NAME)
-    portrait_bytes = portrait_path.read_bytes()
-    audio_bytes = audio_path.read_bytes()
-    result_bytes = render_fn.remote(portrait_bytes, audio_bytes)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(result_bytes)
+    script = f"""
+import modal, sys
+fn = modal.Function.from_name("{MODAL_APP_NAME}", "{MODAL_FUNCTION_NAME}")
+portrait = open("{portrait_path}", "rb").read()
+audio = open("{audio_path}", "rb").read()
+result = fn.remote(portrait, audio)
+open("{output_path}", "wb").write(result)
+print(f"wrote {{len(result)}} bytes", file=sys.stderr)
+"""
+    proc = subprocess.run(
+        [MODAL_PYTHON, "-c", script],
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
+    if proc.returncode != 0 or not output_path.exists():
+        raise RuntimeError(
+            f"modal render failed (rc={proc.returncode}): {proc.stderr[-500:]}"
+        )
     return output_path
 
 
