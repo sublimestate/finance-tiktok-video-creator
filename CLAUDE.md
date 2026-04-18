@@ -130,7 +130,7 @@ data/models/             # Vosk speech models (gitignored)
 - **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
 - **Transcription chain**: YouTube transcript (via upload_video.sh) → OCI Speech AI (cloud) → Vosk (local fallback)
 - **Pipelined prep+render**: one ThreadPoolExecutor runs `_prepare_and_render` per clip (silence detect → transcribe → face → render). Fast clips finish encoding while slow ones still transcribe — no "all prep, then all render" barrier
-- **AI host video** (`host_video.py`): generates a TikTok with 2-3 AI-rendered avatar cutaway scenes inside the existing collage style. Requires `RUNPOD_API_KEY` env var and a portrait at `data/avatar/portrait.png` (run `setup_host.py` first with `REPLICATE_API_TOKEN` set). Use `--no-runpod` to develop with still-portrait fallbacks instead of GPU calls. Pipeline: `python3 host_video.py "headline"`. Spec: `docs/superpowers/specs/2026-04-14-ai-host-video-design.md`. Plan: `docs/superpowers/plans/2026-04-14-ai-host-video.md`.
+- **AI host video** (`host_video.py`): generates a TikTok with 2-3 AI-rendered avatar cutaway scenes (EchoMimic V1 on Modal A10G) inside the existing collage style. Requires Modal token (`~/.modal.toml`) and `modal_app.py` deployed (`python3.9 -m modal deploy modal_app.py`). Portrait at `data/avatar/portrait.png` (real photo works best — AI-generated portraits cause worse lip sync). Use `--no-gpu` for still-portrait fallbacks. Pipeline: `python3 host_video.py "headline"`. ~$0.18/cutaway, ~$0.54/video, free $30/mo on Modal.
 - **Perf testing**: use `data/videos/JJeQ8531HgE.mp4` (82MB, transcript cached) as the canonical small test video — `python3 clip_video.py JJeQ8531HgE --ai oci --skip-download --max-clips 3 --quality final` runs the full pipeline in ~2 min
 
 ## Source Video Selection
@@ -204,6 +204,10 @@ scenes:
 - OCI GenAI + Speech require explicit dynamic-group policies (`use generative-ai-family`, `use ai-service-speech-family`) — object-storage policies don't grant them. 404 NotAuthorizedOrNotFound = IAM, not code
 - Per-clip prep is thread-parallel — silence detect (subprocess), face detect (cv2), OCI Speech (network), Vosk (C ext) all release the GIL. Vosk model loading is locked via `threading.Lock` in clipper/transcribe_clip.py to prevent duplicate loads on cold cache
 - clipper/oci_speech.py wraps the whole flow in `except Exception: return []` — silent fallback hides real failures during debugging. Temporarily replace with `traceback.print_exc()` or check `list_transcription_jobs` for FAILED state when OCI Speech mysteriously returns 0 words
+- Modal SDK requires Python 3.9+ but the project uses Python 3.8 — `avatar/render.py` shells out to `python3.9` for `modal.Function.from_name().remote()` calls. If Modal calls fail with "client version too old", check which Python is being used.
+- Edge TTS `--write-media foo.wav` outputs MP3 with a .wav extension, not real WAV. Lip-sync models (EchoMimic, Hallo2) need real PCM WAV — convert with `ffmpeg -i input.wav -ar 16000 -ac 1 -c:a pcm_s16le output.wav` before passing to avatar render
+- LivePortrait (KwaiVGI/LivePortrait) is VIDEO-driven (expression transfer between two videos), NOT audio-driven. Do not use it for `(portrait, audio) → talking head`. Use EchoMimic V1 or Hallo2 instead.
+- AI-generated portraits (SDXL, Flux) have facial geometry quirks that degrade lip-sync model output (EchoMimic, Hallo2, MuseTalk, LatentSync). Real photos of real faces produce noticeably better mouth rendering. Always test with a real photo before blaming the model.
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
