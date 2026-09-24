@@ -12,8 +12,7 @@ Four tools: (1) Create original TikTok videos from YAML scripts. (2) One-command
 - **Pexels API** — stock footage and video clips
 - **SerpAPI** — Google Image search for news images + Rumble video search
 - **Oracle GenAI** — AI analysis via Gemini 2.5 Flash (full transcript) + Grok 3 Mini (fallback), Instance Principal auth
-- **OCI Speech AI** — primary cloud transcription (Whisper Medium), accurate word-level timestamps
-- **Vosk** — local fallback: small model (fast transcription), large model (per-word timing)
+- **Vosk** — dual model: small (fast transcription), large (accurate per-word caption timing)
 - **yt-dlp + Deno** — YouTube/Rumble download (Deno solves JS challenges, --impersonate chrome for Rumble)
 - **OCI Object Storage** — HD video upload/download (bucket: YOUR_BUCKET, namespace: YOUR_NAMESPACE)
 
@@ -105,8 +104,6 @@ clipper/                 # Clip generator modules
   render.py              #   FFmpeg clip rendering + auto-trim silence
   transcribe_clip.py     #   Vosk dual-model transcription
   transcript.py          #   YouTube transcript fetching
-  oci_speech.py          #   OCI Speech AI transcription (cloud Whisper)
-  detect_captions.py     #   Burned-in caption detection (disabled)
   facedetect.py          #   Face detection for smart cropping
   download.py            #   OCI + yt-dlp download
 remotion/src/            # Remotion overlay components
@@ -116,28 +113,17 @@ data/models/             # Vosk speech models (gitignored)
 ```
 
 ## Clip Generation Features
-- **Karaoke captions**: white text with green highlight, word-by-word timing via OCI Speech AI (falls back to Vosk), border pulse animation, 2 words per group with gap-based splitting
-- **Hook quote**: scroll-stopping text shown in first 2 seconds at top of screen (AI generates `hook_quote` field)
-- **OCI Speech AI**: primary transcription for per-clip captions — cloud Whisper Medium, accurate word timestamps, ~50s per clip
+- **Karaoke captions**: white text with green highlight, word-by-word timing via Vosk large model, border pulse animation
+- **Hook title**: full-width dark banner with wrapped text, displayed first 5 seconds
 - **Two-pass AI titles**: first pass finds clips, second pass rewrites titles using actual clip transcript
 - **AI-generated TikTok descriptions**: hook line + 5 hashtags, generated during analysis
 - **Auto-trim silence**: detects and removes leading/trailing dead air
 - **Clip overlap detection**: deduplicates overlapping time ranges
-- **Flexible duration**: AI picks 30-45s per clip — short and punchy for TikTok watch-through
-- **Burned-in caption detection**: auto-detection disabled (too many false positives) — use `--no-captions` flag manually for videos with existing captions
+- **Flexible duration**: AI picks 20-90s per clip based on content
 - **Quality presets**: draft (low bitrate, skip face/vosk), preview (full bitrate, skip face/vosk), final (full quality) — use preview for iteration, final for posting
 - **Fade transitions**: 0.3s video + audio fade in/out on all clips
 - **Full transcript analysis**: Gemini 2.5 Flash handles up to 200K chars, Grok fallback for coverage
-- **Transcription chain**: YouTube transcript (via upload_video.sh) → OCI Speech AI (cloud) → Vosk (local fallback)
-- **Pipelined prep+render**: one ThreadPoolExecutor runs `_prepare_and_render` per clip (silence detect → transcribe → face → render). Fast clips finish encoding while slow ones still transcribe — no "all prep, then all render" barrier
-- **AI host video** (`host_video.py`): generates a TikTok with 2-3 AI-rendered avatar cutaway scenes inside the existing collage style. Requires `RUNPOD_API_KEY` env var and a portrait at `data/avatar/portrait.png` (run `setup_host.py` first with `REPLICATE_API_TOKEN` set). Use `--no-runpod` to develop with still-portrait fallbacks instead of GPU calls. Pipeline: `python3 host_video.py "headline"`. Spec: `docs/superpowers/specs/2026-04-14-ai-host-video-design.md`. Plan: `docs/superpowers/plans/2026-04-14-ai-host-video.md`.
-- **Perf testing**: use `data/videos/JJeQ8531HgE.mp4` (82MB, transcript cached) as the canonical small test video — `python3 clip_video.py JJeQ8531HgE --ai oci --skip-download --max-clips 3 --quality final` runs the full pipeline in ~2 min
-
-## Source Video Selection
-- Best clips come from emotional interviews, confrontations, personal stories with stakes
-- Caleb Hammer Financial Audit, Dave Ramsey, Diary of a CEO = high clip density
-- Educational explainers / voiceover videos = poor clip quality, avoid
-- Longer videos (30-60 min) yield more diverse clips than short ones (<15 min)
+- **Vosk fallback**: auto-transcribes when no YouTube transcript available
 
 ## Video Format (Best Performing)
 - 8-10 scenes, 2-3 seconds each, ~25-30 seconds total
@@ -195,15 +181,7 @@ scenes:
 - Gemini 2.5 Flash sometimes returns 0 clips on large transcripts — Grok fallback handles this automatically
 - OCI disk resize: `oci-growfs` not available, use `sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`
 - Rumble search pages blocked by Cloudflare — use SerpAPI `site:rumble.com` queries instead
-- YouTube blocks transcript API from cloud IPs too — always upload transcript from Mac via upload_video.sh
-- Burned-in caption detection (clipper/detect_captions.py) disabled due to false positives — use --no-captions flag
-- OCI Speech AI requires audio uploaded to Object Storage first, results written to speech_output/ prefix
-- Server: 32 vCPUs, 62GB RAM, 200GB storage (AMD EPYC Flex shape, upgraded 2026-04-14 from 8 vCPU / 32GB)
-- Parallel render threads capped at 12 on Linux (`platform_utils.get_thread_count()`) — each libx264 encode is itself multi-threaded, so higher counts oversubscribe cores
-- ffmpeg WAV to pipe leaves RIFF/data chunk sizes as 0xFFFFFFFF (ffmpeg can't seek a pipe) — OCI Speech rejects this. Patch both length fields with `struct.pack_into` before upload (clipper/oci_speech.py)
-- OCI GenAI + Speech require explicit dynamic-group policies (`use generative-ai-family`, `use ai-service-speech-family`) — object-storage policies don't grant them. 404 NotAuthorizedOrNotFound = IAM, not code
-- Per-clip prep is thread-parallel — silence detect (subprocess), face detect (cv2), OCI Speech (network), Vosk (C ext) all release the GIL. Vosk model loading is locked via `threading.Lock` in clipper/transcribe_clip.py to prevent duplicate loads on cold cache
-- clipper/oci_speech.py wraps the whole flow in `except Exception: return []` — silent fallback hides real failures during debugging. Temporarily replace with `traceback.print_exc()` or check `list_transcription_jobs` for FAILED state when OCI Speech mysteriously returns 0 words
+- Server: 8 vCPUs (4 cores × 2 threads), 32GB RAM, 200GB storage (AMD EPYC)
 - Stop Ollama (`sudo systemctl stop ollama`) when not in use to free RAM
 - Multiple Claude sessions with Telegram plugin cause missed messages — kill stale ones
 
@@ -216,8 +194,7 @@ scenes:
 ## OCI Video Workflow
 ```bash
 # Download video from OCI and generate clips (most common workflow):
-# 1. User runs on Mac: ./upload_video.sh "https://youtube.com/watch?v=VIDEO_ID"
-#    This uploads both video + YouTube transcript to OCI
+# 1. User uploads to OCI: oci://finance-videos/{VIDEO_ID}.mp4
 # 2. Download with Python OCI SDK (Instance Principal auth):
 python3 -c "
 import oci

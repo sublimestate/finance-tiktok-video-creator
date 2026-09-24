@@ -99,7 +99,7 @@ def main():
                 print("  Checking OCI for uploaded transcript...")
                 _signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
                 _client = oci.object_storage.ObjectStorageClient({}, signer=_signer)
-                _obj = _client.get_object("idtd7ksjim3e", "finance-videos", f"{video_id}_transcript.json")
+                _obj = _client.get_object("YOUR_OCI_NAMESPACE", "YOUR_BUCKET_NAME", f"{video_id}_transcript.json")
                 with open(transcript_cache, "wb") as f:
                     for chunk in _obj.data.raw.stream(8192, decode_content=False):
                         f.write(chunk)

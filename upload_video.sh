@@ -12,8 +12,8 @@
 
 set -e
 
-BUCKET="finance-videos"
-NAMESPACE="idtd7ksjim3e"
+BUCKET="YOUR_BUCKET_NAME"
+NAMESPACE="YOUR_OCI_NAMESPACE"
 REGION="us-ashburn-1"
 
 if [ -z "$1" ]; then

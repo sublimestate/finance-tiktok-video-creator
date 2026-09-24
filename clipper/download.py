@@ -44,8 +44,8 @@ def download_video(video_id: str, output_dir: str, cookies_file: str = "") -> st
 
 
 def download_from_oci(video_id: str, output_dir: str,
-                      bucket: str = "finance-videos",
-                      namespace: str = "idtd7ksjim3e") -> str:
+                      bucket: str = "YOUR_BUCKET_NAME",
+                      namespace: str = "YOUR_OCI_NAMESPACE") -> str:
     """Download a video from Oracle Object Storage. Returns local file path."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     output_path = str(Path(output_dir) / f"{video_id}.mp4")
